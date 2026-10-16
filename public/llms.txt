@@ -1,13 +1,15 @@
-# 文件去識別化工具（Data De-identification Tool）
+# 學生資料去識別化工具（Student Data De-identification Tool）
 
 > 免費、開源、純前端的線上文件去識別化工具：上傳 PDF、Word、Excel、TXT、Markdown 或貼上文字，自動偵測姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號與自訂識別碼，遮罩預覽、人工覆核後下載去識別化文件與 CSV 編碼表，日後可憑編碼表完整還原（不需還原時也可只輸出類別標記或「○」佔位）。所有處理在瀏覽器內完成，檔案不會上傳到任何伺服器。
 
-- 網址：https://deanlin.net/data-deidentification/
-- 原始碼（MIT 授權）：https://github.com/dean9703111/data-deidentification
-- 作者：Dean Lin（https://deanlin.net/）
+- 網址：https://chuoneone.github.io/sped-deidentification/
+- 原始碼（MIT 授權）：https://github.com/chuoneone/sped-deidentification
+- 改自：Dean Lin 的「文件去識別化工具」https://github.com/dean9703111/data-deidentification
+- 維護：chuoneone（原作者 Dean Lin，https://deanlin.net/）
 - 語言：繁體中文（台灣）；內建偵測規則以台灣常見格式為主
 - 適用情境：把合約、報價單、客戶清單、客服信件、會議紀錄交給外包廠商、AI 服務（ChatGPT、Claude、Gemini）或研究單位之前先移除個資，事後仍可還原；也適用於紙本掃描檔（申請表、名冊、名片）與公開範例
-- 完整說明（README，Markdown）：https://deanlin.net/data-deidentification/llms-full.txt
+- 完整說明（README，Markdown）：https://chuoneone.github.io/sped-deidentification/llms-full.txt
+- 本版本：新增「學校與特教文件」規則（欄位後的姓名、名字簡稱連動、學校、班級、學號、醫院、障礙類別／診斷／用藥），中文姓名預設不從內文猜測，圈選新增會遮蔽全文相同的字
 
 ## 主要特點
 
@@ -64,14 +66,14 @@ Data De-identification Tool is a free, open-source, browser-only tool for redact
 
 ## 參考連結
 
-- [完整說明（Markdown，供 AI 閱讀）](https://deanlin.net/data-deidentification/llms-full.txt)
+- [完整說明（Markdown，供 AI 閱讀）](https://chuoneone.github.io/sped-deidentification/llms-full.txt)
 
 - [完整操作說明與截圖（README）](https://github.com/dean9703111/data-deidentification#readme)
 - [偵測規則說明](https://github.com/dean9703111/data-deidentification#偵測規則)
 - [輸出格式：標記與編碼表](https://github.com/dean9703111/data-deidentification#輸出格式標記與編碼表)
-- [範例：委外服務契約書 (Word)](https://deanlin.net/data-deidentification/samples/contract.docx)
-- [範例：報價單 (PDF)](https://deanlin.net/data-deidentification/samples/quotation.pdf)
-- [範例：掃描文件 (掃描 PDF，5 頁：信函、手寫表單、名冊、英文 Invoice、名片)](https://deanlin.net/data-deidentification/samples/scanned.pdf)
-- [範例：客戶資料 (Excel)](https://deanlin.net/data-deidentification/samples/customers.xlsx)
-- [範例：客服信件 (TXT)](https://deanlin.net/data-deidentification/samples/support-email.txt)
-- [範例：已去識別化契約書＋編碼表（還原體驗）](https://deanlin.net/data-deidentification/samples/contract.deid.docx)
+- [範例：委外服務契約書 (Word)](https://chuoneone.github.io/sped-deidentification/samples/contract.docx)
+- [範例：報價單 (PDF)](https://chuoneone.github.io/sped-deidentification/samples/quotation.pdf)
+- [範例：掃描文件 (掃描 PDF，5 頁：信函、手寫表單、名冊、英文 Invoice、名片)](https://chuoneone.github.io/sped-deidentification/samples/scanned.pdf)
+- [範例：客戶資料 (Excel)](https://chuoneone.github.io/sped-deidentification/samples/customers.xlsx)
+- [範例：客服信件 (TXT)](https://chuoneone.github.io/sped-deidentification/samples/support-email.txt)
+- [範例：已去識別化契約書＋編碼表（還原體驗）](https://chuoneone.github.io/sped-deidentification/samples/contract.deid.docx)

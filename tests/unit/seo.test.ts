@@ -11,7 +11,7 @@ describe('index.html search metadata', () => {
   it('has a title, description, canonical URL and the structured data types', () => {
     expect(page.title).toContain('去識別化');
     expect(page.querySelector('meta[name=description]')!.getAttribute('content')!.length).toBeGreaterThan(80);
-    expect(page.querySelector('link[rel=canonical]')!.getAttribute('href')).toBe('https://deanlin.net/data-deidentification/');
+    expect(page.querySelector('link[rel=canonical]')!.getAttribute('href')).toBe('https://chuoneone.github.io/sped-deidentification/');
     expect(graph.map((g) => g['@type'])).toEqual(expect.arrayContaining(['WebSite', 'WebPage', 'WebApplication', 'HowTo', 'FAQPage']));
     expect(node('WebPage').dateModified).toBe('__BUILD_DATE__'); // stamped at build time
   });

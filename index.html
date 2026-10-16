@@ -3,34 +3,27 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>免費文件去識別化工具｜PDF、Word、Excel、掃描檔個資遮罩與還原（資料不上傳）</title>
-    <meta name="description" content="免費、免安裝、資料不上傳的線上文件去識別化工具：自動偵測 PDF（含掃描檔）、Word、Excel、TXT 中的姓名、身分證、手機、地址、Email、公司、統編並遮罩，人工覆核後下載；可用 CSV 編碼表完整還原，也可只輸出 [姓名] 或 ○○○。全程在瀏覽器內處理。" />
-    <meta name="keywords" content="去識別化, 個資去識別化, 個資遮罩, 個資遮蔽, 文件去識別化, 個人資料保護, 個資法, 假名化, 匿名化, PDF 去識別化, 掃描檔 OCR, Word 去識別化, Excel 去識別化, 身分證遮罩, 資料脫敏, ChatGPT 個資, de-identification, PII redaction, 純前端" />
-    <meta name="author" content="Dean Lin" />
+    <title>學生資料去識別化工具｜IEP、會議紀錄、輔導紀錄個資遮罩與還原（資料不上傳）</title>
+    <meta name="description" content="給老師與特教人員的免費去識別化工具：IEP、個案會議紀錄、輔導紀錄交給 AI 或校外之前，自動遮蔽學生、家長、老師姓名與學校、班級、學號、醫院、障礙類別，以及身分證、電話、地址；支援 Word、PDF（含掃描檔）、Excel，人工覆核後下載，可用 CSV 編碼表還原。全程在瀏覽器內處理、資料不上傳。" />
+    <meta name="keywords" content="IEP 去識別化, 學生資料去識別化, 特教, 個案會議紀錄, 輔導紀錄, 去識別化, 個資去識別化, 個資遮罩, 個資遮蔽, 文件去識別化, 個人資料保護, 個資法, 假名化, 匿名化, PDF 去識別化, 掃描檔 OCR, Word 去識別化, Excel 去識別化, 身分證遮罩, 資料脫敏, ChatGPT 個資, de-identification, PII redaction, 純前端" />
+    <meta name="author" content="chuoneone（改自 Dean Lin 的開源專案）" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
     <meta name="theme-color" content="#2f6fed" />
-    <link rel="canonical" href="https://deanlin.net/data-deidentification/" />
-    <link rel="alternate" type="text/markdown" href="https://deanlin.net/data-deidentification/llms-full.txt" title="完整說明（Markdown，供 AI 閱讀）" />
-    <link rel="icon" type="image/png" href="https://deanlin.net/images/favicon.png" />
-    <link rel="apple-touch-icon" href="https://deanlin.net/images/favicon.png" />
+    <link rel="canonical" href="https://chuoneone.github.io/sped-deidentification/" />
+    <link rel="alternate" type="text/markdown" href="https://chuoneone.github.io/sped-deidentification/llms-full.txt" title="完整說明（Markdown，供 AI 閱讀）" />
+    <link rel="icon" type="image/png" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%9B%A1%EF%B8%8F%3C/text%3E%3C/svg%3E" />
 
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="文件去識別化工具" />
+    <meta property="og:site_name" content="學生資料去識別化工具" />
     <meta property="og:locale" content="zh_TW" />
-    <meta property="og:url" content="https://deanlin.net/data-deidentification/" />
-    <meta property="og:title" content="免費文件去識別化工具｜PDF、Word、Excel、掃描檔個資遮罩與還原" />
+    <meta property="og:url" content="https://chuoneone.github.io/sped-deidentification/" />
+    <meta property="og:title" content="學生資料去識別化工具｜IEP、會議紀錄、輔導紀錄個資遮罩與還原" />
     <meta property="og:description" content="資料不上傳、全程在瀏覽器內處理。自動偵測姓名、身分證、手機、地址、Email、公司、統編，支援 PDF（含掃描檔 OCR）、Word、Excel，保留原格式輸出；可用 CSV 編碼表還原，也可只輸出 [姓名] 或 ○○○。" />
-    <meta property="og:image" content="https://deanlin.net/data-deidentification/og.png" />
-    <meta property="og:image:type" content="image/png" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="文件去識別化工具：契約書中的姓名、身分證、手機、地址、公司與統編以遮罩呈現" />
 
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="免費文件去識別化工具｜PDF、Word、Excel、掃描檔個資遮罩與還原" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="學生資料去識別化工具｜IEP、會議紀錄、輔導紀錄個資遮罩與還原" />
     <meta name="twitter:description" content="資料不上傳、全程在瀏覽器內處理。自動偵測姓名、身分證、手機、地址、Email、公司、統編，支援 PDF（含掃描檔 OCR）、Word、Excel，保留原格式輸出；可用 CSV 編碼表還原，也可只輸出 [姓名] 或 ○○○。" />
-    <meta name="twitter:image" content="https://deanlin.net/data-deidentification/og.png" />
-    <meta name="twitter:image:alt" content="文件去識別化工具：契約書中的姓名、身分證、手機、地址、公司與統編以遮罩呈現" />
 
     <!-- FAQPage answers must stay word-for-word identical to the visible #faq content below. -->
     <script type="application/ld+json">
@@ -39,42 +32,34 @@
       "@graph": [
         {
           "@type": "WebSite",
-          "@id": "https://deanlin.net/data-deidentification/#website",
-          "url": "https://deanlin.net/data-deidentification/",
-          "name": "文件去識別化工具",
+          "@id": "https://chuoneone.github.io/sped-deidentification/#website",
+          "url": "https://chuoneone.github.io/sped-deidentification/",
+          "name": "學生資料去識別化工具",
           "alternateName": "Data De-identification Tool",
           "inLanguage": "zh-Hant-TW",
-          "publisher": { "@id": "https://deanlin.net/#person" }
+          "publisher": { "@id": "https://github.com/chuoneone#person" }
         },
         {
           "@type": "WebPage",
-          "@id": "https://deanlin.net/data-deidentification/#webpage",
-          "url": "https://deanlin.net/data-deidentification/",
-          "name": "免費文件去識別化工具｜PDF、Word、Excel、掃描檔個資遮罩與還原",
-          "description": "免費、免安裝、資料不上傳的線上文件去識別化工具：自動偵測 PDF（含掃描檔）、Word、Excel、TXT 中的姓名、身分證、手機、地址、Email、公司、統編並遮罩，人工覆核後下載；可用 CSV 編碼表完整還原，也可只輸出 [姓名] 或 ○○○。全程在瀏覽器內處理。",
+          "@id": "https://chuoneone.github.io/sped-deidentification/#webpage",
+          "url": "https://chuoneone.github.io/sped-deidentification/",
+          "name": "學生資料去識別化工具｜IEP、會議紀錄、輔導紀錄個資遮罩與還原",
+          "description": "給老師與特教人員的免費去識別化工具：IEP、個案會議紀錄、輔導紀錄交給 AI 或校外之前，自動遮蔽學生、家長、老師姓名與學校、班級、學號、醫院、障礙類別，以及身分證、電話、地址；支援 Word、PDF（含掃描檔）、Excel，人工覆核後下載，可用 CSV 編碼表還原。全程在瀏覽器內處理、資料不上傳。",
           "inLanguage": "zh-Hant-TW",
           "datePublished": "2026-09-02",
           "dateModified": "__BUILD_DATE__",
-          "isPartOf": { "@id": "https://deanlin.net/data-deidentification/#website" },
-          "about": { "@id": "https://deanlin.net/data-deidentification/#app" },
-          "mainEntity": { "@id": "https://deanlin.net/data-deidentification/#app" },
-          "primaryImageOfPage": {
-            "@type": "ImageObject",
-            "url": "https://deanlin.net/data-deidentification/og.png",
-            "width": 1200,
-            "height": 630
-          },
-          "author": { "@id": "https://deanlin.net/#person" }
+          "isPartOf": { "@id": "https://chuoneone.github.io/sped-deidentification/#website" },
+          "about": { "@id": "https://chuoneone.github.io/sped-deidentification/#app" },
+          "mainEntity": { "@id": "https://chuoneone.github.io/sped-deidentification/#app" },
+          "author": { "@id": "https://github.com/chuoneone#person" }
         },
         {
           "@type": "WebApplication",
-          "@id": "https://deanlin.net/data-deidentification/#app",
-          "name": "文件去識別化工具",
+          "@id": "https://chuoneone.github.io/sped-deidentification/#app",
+          "name": "學生資料去識別化工具",
           "alternateName": "Data De-identification Tool",
-          "url": "https://deanlin.net/data-deidentification/",
-          "image": "https://deanlin.net/data-deidentification/og.png",
-          "screenshot": "https://deanlin.net/data-deidentification/og.png",
-          "description": "純前端的文件去識別化工具：上傳 PDF、Word、Excel、TXT、Markdown 或貼上文字，自動偵測個人資料並遮罩，下載去識別化文件與 CSV 編碼表，可完整還原。所有處理在瀏覽器內完成，檔案不會上傳。",
+          "url": "https://chuoneone.github.io/sped-deidentification/",
+          "description": "純前端的學生資料去識別化工具：上傳 PDF、Word、Excel、TXT、Markdown 或貼上文字，自動偵測個人資料並遮罩，下載去識別化文件與 CSV 編碼表，可完整還原。所有處理在瀏覽器內完成，檔案不會上傳。",
           "applicationCategory": "UtilitiesApplication",
           "applicationSubCategory": "Data de-identification / PII redaction",
           "operatingSystem": "Any (Web browser)",
@@ -95,31 +80,32 @@
             "標記方式：可還原的編碼（附 CSV 編碼表），或不需還原的類別標記 [姓名]、○ 佔位",
             "純前端處理，資料不離開瀏覽器，可離線與自行架設"
           ],
-          "softwareHelp": { "@type": "CreativeWork", "url": "https://github.com/dean9703111/data-deidentification#readme" },
-          "author": { "@id": "https://deanlin.net/#person" }
+          "softwareHelp": { "@type": "CreativeWork", "url": "https://github.com/chuoneone/sped-deidentification#readme" },
+          "author": { "@id": "https://github.com/chuoneone#person" }
         },
         {
           "@type": "SoftwareSourceCode",
-          "@id": "https://github.com/dean9703111/data-deidentification#source",
+          "@id": "https://github.com/chuoneone/sped-deidentification#source",
           "name": "data-deidentification",
-          "codeRepository": "https://github.com/dean9703111/data-deidentification",
+          "codeRepository": "https://github.com/chuoneone/sped-deidentification",
+          "isBasedOn": "https://github.com/dean9703111/data-deidentification",
           "programmingLanguage": "TypeScript",
           "runtimePlatform": "Web browser",
           "license": "https://opensource.org/licenses/MIT",
-          "targetProduct": { "@id": "https://deanlin.net/data-deidentification/#app" },
-          "author": { "@id": "https://deanlin.net/#person" }
+          "targetProduct": { "@id": "https://chuoneone.github.io/sped-deidentification/#app" },
+          "author": { "@id": "https://github.com/chuoneone#person" }
         },
         {
           "@type": "HowTo",
-          "@id": "https://deanlin.net/data-deidentification/#howto",
+          "@id": "https://chuoneone.github.io/sped-deidentification/#howto",
           "name": "如何把 PDF、Word、Excel 文件去識別化（遮罩個資）",
-          "description": "使用免費的文件去識別化工具，在瀏覽器內自動偵測並遮罩文件中的個人資料，檔案不會上傳。",
+          "description": "使用免費的學生資料去識別化工具，在瀏覽器內自動偵測並遮罩文件中的個人資料，檔案不會上傳。",
           "inLanguage": "zh-Hant-TW",
           "totalTime": "PT3M",
           "tool": [
             {
               "@type": "HowToTool",
-              "name": "文件去識別化工具（網頁瀏覽器）"
+              "name": "學生資料去識別化工具（網頁瀏覽器）"
             }
           ],
           "step": [
@@ -128,48 +114,48 @@
               "position": 1,
               "name": "上傳文件",
               "text": "在「去識別化」頁籤拖入 PDF、Word、Excel、TXT、Markdown 檔案或貼上文字，按「開始去識別化」。掃描的 PDF 會先在瀏覽器內以 OCR 辨識文字。",
-              "url": "https://deanlin.net/data-deidentification/#site-info"
+              "url": "https://chuoneone.github.io/sped-deidentification/#site-info"
             },
             {
               "@type": "HowToStep",
               "position": 2,
               "name": "檢視自動偵測結果",
               "text": "在依原格式排版的預覽中檢視自動標記的姓名、身分證字號、手機、地址、電子郵件等個資；滑鼠停留可看原文與實際輸出標記。",
-              "url": "https://deanlin.net/data-deidentification/#site-info"
+              "url": "https://chuoneone.github.io/sped-deidentification/#site-info"
             },
             {
               "@type": "HowToStep",
               "position": 3,
               "name": "人工覆核",
               "text": "點擊標記取消誤判、在「輸出設定」的「依類別調整」整類取消、圈選文字新增漏抓的項目。",
-              "url": "https://deanlin.net/data-deidentification/#site-info"
+              "url": "https://chuoneone.github.io/sped-deidentification/#site-info"
             },
             {
               "@type": "HowToStep",
               "position": 4,
               "name": "選擇輸出方式與標記方式",
               "text": "輸出方式決定露出多少（部分保留、全部隱藏、自訂）；標記方式決定要不要還原（可還原的編碼，或不需還原的類別標記 [姓名]、○ 佔位）。",
-              "url": "https://deanlin.net/data-deidentification/#site-info"
+              "url": "https://chuoneone.github.io/sped-deidentification/#site-info"
             },
             {
               "@type": "HowToStep",
               "position": 5,
               "name": "下載",
               "text": "下載去識別化文件（與上傳相同格式）；使用編碼時一併下載 CSV 編碼表，多個檔案可打包成 ZIP。",
-              "url": "https://deanlin.net/data-deidentification/#site-info"
+              "url": "https://chuoneone.github.io/sped-deidentification/#site-info"
             },
             {
               "@type": "HowToStep",
               "position": 6,
               "name": "需要時還原",
               "text": "在「還原」頁籤上傳去識別化文件與編碼表，即可下載還原檔。",
-              "url": "https://deanlin.net/data-deidentification/#site-info"
+              "url": "https://chuoneone.github.io/sped-deidentification/#site-info"
             }
           ]
         },
         {
           "@type": "FAQPage",
-          "@id": "https://deanlin.net/data-deidentification/#faq",
+          "@id": "https://chuoneone.github.io/sped-deidentification/#faq",
           "mainEntity": [
             {
               "@type": "Question",
@@ -189,7 +175,7 @@
             {
               "@type": "Question",
               "name": "可以偵測哪些個人資料？",
-              "acceptedAnswer": { "@type": "Answer", "text": "內建十五種類別。台灣格式：中文姓名、身分證字號（含檢核碼驗證）、手機、市話、地址、電子郵件、公司／組織名稱、統一編號（含檢核碼驗證）與自訂識別碼；國際格式：國際電話（驗證號碼有效性）、信用卡號（Luhn 檢核）、美國社會安全碼（SSN）、IBAN 國際銀行帳號、IP 位址與出生日期（依「出生日期」「Date of Birth」等標籤判斷）。也可以用正規表達式新增自訂規則；英文姓名與地址目前需在預覽中圈選新增。" }
+              "acceptedAnswer": { "@type": "Answer", "text": "內建二十種類別。學校與特教文件：欄位後的姓名（學生、家長、導師、出席人員等，含全文相同姓名與單寫的名字）、學校、班級、學號、醫院／早療機構、障礙類別／診斷／用藥；台灣格式：中文姓名（從內文猜測，預設關閉）、身分證字號（含檢核碼驗證）、手機、市話、地址、電子郵件、公司／組織名稱、統一編號（含檢核碼驗證）與自訂識別碼；國際格式：國際電話（驗證號碼有效性）、信用卡號（Luhn 檢核）、美國社會安全碼（SSN）、IBAN 國際銀行帳號、IP 位址與出生日期（依「出生日期」「Date of Birth」等標籤判斷）。也可以用正規表達式新增自訂規則；英文姓名與地址目前需在預覽中圈選新增。" }
             },
             {
               "@type": "Question",
@@ -239,7 +225,7 @@
             {
               "@type": "Question",
               "name": "自動偵測會不會有誤判或漏抓？",
-              "acceptedAnswer": { "@type": "Answer", "text": "會。中文姓名與地址無法靠規則做到零誤判、零漏抓，所以自動偵測只是建議：預覽畫面可以點擊標記取消誤判、在「依類別調整」整類取消，或圈選文字手動新增漏抓的項目，確認後再下載。" }
+              "acceptedAnswer": { "@type": "Answer", "text": "會。姓名與地址無法靠規則做到零誤判、零漏抓，所以自動偵測只是建議。本版本預設不從內文猜測姓名，只遮蔽欄位裡的姓名及其在全文的出現處，誤判少很多；名單外的名字在預覽圈選一次，全文相同的字會一起遮蔽。預覽畫面也可以點擊標記取消誤判、在「依類別調整」整類取消，確認後再下載。" }
             },
             {
               "@type": "Question",
@@ -250,16 +236,10 @@
         },
         {
           "@type": "Person",
-          "@id": "https://deanlin.net/#person",
-          "name": "Dean Lin",
-          "url": "https://deanlin.net/",
-          "sameAs": [
-            "https://medium.com/@dean-lin",
-            "https://www.facebook.com/deanlinbao",
-            "https://www.threads.com/@deanlin5288",
-            "https://www.youtube.com/@dlcorner",
-            "https://github.com/dean9703111"
-          ]
+          "@id": "https://github.com/chuoneone#person",
+          "name": "chuoneone",
+          "url": "https://github.com/chuoneone",
+          "sameAs": ["https://github.com/chuoneone"]
         }
       ]
     }
@@ -269,15 +249,17 @@
     <div id="app">
       <!-- Static fallback for crawlers and no-JS clients; replaced by the app on load. -->
       <main class="seo-fallback">
-        <h1>文件去識別化工具</h1>
-        <p>純前端、資料不出電腦的文件去識別化工具。上傳 PDF、Word、Excel、TXT、Markdown 或貼上文字，自動偵測姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號與自訂識別碼；預覽、人工覆核後下載去識別化文件與 CSV 編碼表，之後可完整還原。</p>
-        <noscript><p>本工具需要啟用 JavaScript 才能運作。原始碼與說明：<a href="https://github.com/dean9703111/data-deidentification">github.com/dean9703111/data-deidentification</a></p></noscript>
+        <h1>學生資料去識別化工具</h1>
+        <p>純前端、資料不出電腦的學生資料去識別化工具。上傳 PDF、Word、Excel、TXT、Markdown 或貼上文字，自動偵測姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號與自訂識別碼；預覽、人工覆核後下載去識別化文件與 CSV 編碼表，之後可完整還原。</p>
+        <noscript><p>本工具需要啟用 JavaScript 才能運作。原始碼與說明：<a href="https://github.com/chuoneone/sped-deidentification">github.com/chuoneone/sped-deidentification</a></p></noscript>
       </main>
       <!-- Static "about / how-to / FAQ" content: readable without JavaScript; the app keeps it below the panels after mount. -->
       <section id="site-info" class="site-info" aria-labelledby="site-info-title">
         <div class="site-info-inner">
-          <h2 id="site-info-title">關於文件去識別化工具</h2>
-          <p>文件去識別化工具是一個免費、開源、純前端的線上工具，用來把 PDF、Word、Excel、TXT、Markdown 文件或貼上的文字中的個人資料（姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號、自訂識別碼）自動偵測並以唯一編碼取代，同時產出 CSV 編碼表，日後可憑編碼表完整還原。所有處理都在瀏覽器內完成，檔案不會上傳到任何伺服器，離線也能使用。</p>
+          <h2 id="site-info-title">關於學生資料去識別化工具</h2>
+          <p>學生資料去識別化工具是一個免費、開源、純前端的線上工具，用來把 PDF、Word、Excel、TXT、Markdown 文件或貼上的文字中的個人資料（姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號、自訂識別碼）自動偵測並以唯一編碼取代，同時產出 CSV 編碼表，日後可憑編碼表完整還原。所有處理都在瀏覽器內完成，檔案不會上傳到任何伺服器，離線也能使用。</p>
+
+          <p><strong>本版本針對學校與特教文件調整</strong>：新增「學校與特教文件」偵測規則（欄位後的姓名、名字簡稱連動、學校、班級、學號、醫院／早療機構、障礙類別／診斷／用藥）；中文姓名不再從內文猜測（容易把「過程」「一張」誤判成人名），改由「學生姓名：」「家長：」「出席人員：」等欄位取得名單，再遮蔽全文相同的姓名與單寫的名字；名單外的名字在預覽圈選一次，全文相同的字一起遮蔽。改自 Dean Lin 的開源專案<a href="https://github.com/dean9703111/data-deidentification" target="_blank" rel="noopener">「文件去識別化工具」</a>（MIT 授權）。</p>
 
           <h3>適用情境</h3>
           <ul>
@@ -342,7 +324,7 @@
             </details>
             <details>
               <summary>可以偵測哪些個人資料？</summary>
-              <p>內建十五種類別。台灣格式：中文姓名、身分證字號（含檢核碼驗證）、手機、市話、地址、電子郵件、公司／組織名稱、統一編號（含檢核碼驗證）與自訂識別碼；國際格式：國際電話（驗證號碼有效性）、信用卡號（Luhn 檢核）、美國社會安全碼（SSN）、IBAN 國際銀行帳號、IP 位址與出生日期（依「出生日期」「Date of Birth」等標籤判斷）。也可以用正規表達式新增自訂規則；英文姓名與地址目前需在預覽中圈選新增。</p>
+              <p>內建二十種類別。學校與特教文件：欄位後的姓名（學生、家長、導師、出席人員等，含全文相同姓名與單寫的名字）、學校、班級、學號、醫院／早療機構、障礙類別／診斷／用藥；台灣格式：中文姓名（從內文猜測，預設關閉）、身分證字號（含檢核碼驗證）、手機、市話、地址、電子郵件、公司／組織名稱、統一編號（含檢核碼驗證）與自訂識別碼；國際格式：國際電話（驗證號碼有效性）、信用卡號（Luhn 檢核）、美國社會安全碼（SSN）、IBAN 國際銀行帳號、IP 位址與出生日期（依「出生日期」「Date of Birth」等標籤判斷）。也可以用正規表達式新增自訂規則；英文姓名與地址目前需在預覽中圈選新增。</p>
             </details>
             <details>
               <summary>去識別化、假名化、匿名化有什麼不同？</summary>
@@ -382,7 +364,7 @@
             </details>
             <details>
               <summary>自動偵測會不會有誤判或漏抓？</summary>
-              <p>會。中文姓名與地址無法靠規則做到零誤判、零漏抓，所以自動偵測只是建議：預覽畫面可以點擊標記取消誤判、在「依類別調整」整類取消，或圈選文字手動新增漏抓的項目，確認後再下載。</p>
+              <p>會。姓名與地址無法靠規則做到零誤判、零漏抓，所以自動偵測只是建議。本版本預設不從內文猜測姓名，只遮蔽欄位裡的姓名及其在全文的出現處，誤判少很多；名單外的名字在預覽圈選一次，全文相同的字會一起遮蔽。預覽畫面也可以點擊標記取消誤判、在「依類別調整」整類取消，確認後再下載。</p>
             </details>
             <details>
               <summary>這個工具要收費嗎？可以自行架設嗎？</summary>
@@ -390,9 +372,9 @@
             </details>
           </div>
           <h3 lang="en">In English</h3>
-          <p lang="en">Data De-identification Tool is a free, open-source, browser-only tool for redacting personal data (PII) in Traditional Chinese (Taiwan) documents. It detects names, national ID numbers, mobile and landline numbers, addresses, email addresses, company names and tax IDs in PDF (including scanned PDFs, read with in-browser OCR), Word, Excel, TXT and Markdown files, lets you review every match, and exports the redacted file in its original format. Each value becomes a reversible code with a CSV mapping table, or a plain category label or ○ placeholders when no restoring is needed. Files never leave your browser.</p>
+          <p lang="en">Student Data De-identification Tool is a free, open-source, browser-only tool for redacting personal data in Taiwanese school documents such as IEPs, case meeting minutes and counselling records, adapted from Dean Lin's Data De-identification Tool (MIT). It detects names, national ID numbers, mobile and landline numbers, addresses, email addresses, company names and tax IDs in PDF (including scanned PDFs, read with in-browser OCR), Word, Excel, TXT and Markdown files, lets you review every match, and exports the redacted file in its original format. Each value becomes a reversible code with a CSV mapping table, or a plain category label or ○ placeholders when no restoring is needed. Files never leave your browser.</p>
 
-          <p class="muted small">完整操作說明與截圖見 <a href="https://github.com/dean9703111/data-deidentification#readme" target="_blank" rel="noopener">GitHub 專案頁</a>；範例檔皆為程式產生的虛構資料。給 AI 的網站摘要：<a href="llms.txt">llms.txt</a>、<a href="llms-full.txt">llms-full.txt</a>。最後更新：<time datetime="__BUILD_DATE__">__BUILD_DATE__</time></p>
+          <p class="muted small">完整操作說明與截圖見 <a href="https://github.com/chuoneone/sped-deidentification#readme" target="_blank" rel="noopener">GitHub 專案頁</a>；範例檔皆為程式產生的虛構資料。給 AI 的網站摘要：<a href="llms.txt">llms.txt</a>、<a href="llms-full.txt">llms-full.txt</a>。最後更新：<time datetime="__BUILD_DATE__">__BUILD_DATE__</time></p>
         </div>
       </section>
     </div>

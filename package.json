@@ -1,5 +1,5 @@
 {
-  "name": "data-deidentification",
+  "name": "sped-deidentification",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -35,10 +35,13 @@
     "vitest": "^4.1.11"
   },
   "license": "MIT",
-  "author": "Dean Lin",
-  "homepage": "https://deanlin.net/data-deidentification/",
+  "author": "chuoneone",
+  "contributors": [
+    "Dean Lin (original author, https://github.com/chuoneone/sped-deidentification)"
+  ],
+  "homepage": "https://chuoneone.github.io/sped-deidentification/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/dean9703111/data-deidentification.git"
+    "url": "https://github.com/chuoneone/sped-deidentification.git"
   }
 }

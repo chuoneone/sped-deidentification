@@ -1,20 +1,25 @@
-# 文件去識別化工具
+# 學生資料去識別化工具
 
-[![CI & Deploy](https://github.com/dean9703111/data-deidentification/actions/workflows/deploy.yml/badge.svg)](https://github.com/dean9703111/data-deidentification/actions/workflows/deploy.yml)
-[![Live Demo](https://img.shields.io/badge/demo-GitHub%20Pages-2f6fed?logo=github)](https://deanlin.net/data-deidentification/)
-[![Tests](https://img.shields.io/badge/tests-372%20passing-2e9e5b)](#測試與品質)
+[![CI & Deploy](https://github.com/chuoneone/sped-deidentification/actions/workflows/deploy.yml/badge.svg)](https://github.com/chuoneone/sped-deidentification/actions/workflows/deploy.yml)
+[![Live Demo](https://img.shields.io/badge/demo-GitHub%20Pages-2f6fed?logo=github)](https://chuoneone.github.io/sped-deidentification/)
 ![Client-side only](https://img.shields.io/badge/privacy-100%25%20client--side-8e44ad)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-**在瀏覽器裡完成、資料不出電腦的文件去識別化工具。** 上傳 PDF（含掃描檔，於瀏覽器內辨識文字）/ Word / Excel / TXT / Markdown 或直接貼上文字，自動偵測中文姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號與自訂識別碼，以及國際電話、信用卡、美國 SSN、IBAN、IP、出生日期等國際格式；以符合原始格式的方式預覽、人工覆核後，下載去識別化文件與 CSV 編碼對照表，日後可憑編碼表完整還原；不需要還原時，也可以只輸出 `[姓名]` 這類類別標記或「○」佔位。
+**給老師與特教人員的去識別化工具。** IEP、個案會議紀錄、輔導紀錄要交給 AI 或校外之前，先在瀏覽器裡把學生、家長、老師的姓名與學校、班級、學號、醫院、障礙類別、身分證、電話、地址遮掉；資料不出電腦。
 
-🔗 **線上使用：<https://deanlin.net/data-deidentification/>**
+🔗 **線上使用：<https://chuoneone.github.io/sped-deidentification/>**
 
-<p align="center">
-  <img src="docs/screenshots/02-preview.png" alt="去識別化預覽：Word 合約書以頁面方式呈現，敏感資訊以遮罩顯示" width="880">
-</p>
+> 本專案改自 Dean Lin 的開源專案 [文件去識別化工具](https://github.com/dean9703111/data-deidentification)（MIT 授權），感謝原作者。「與原專案的差異」之後的說明大多沿用原專案 README。
 
----
+## 與原專案的差異
+
+- **學校與特教文件規則**（偵測規則頁最上方的群組）：
+  - 欄位後的姓名：「學生姓名：」「家長：」「導師：」「出席人員：」等欄位後的名字，罕見姓氏也抓；表格裡標籤格的下一格也算
+  - 名字簡稱連動：欄位裡的「王小明」在全文出現處都遮蔽，單寫的「小明」也遮蔽
+  - 學校（凱旋國中、宜蘭縣立凱旋國民中學）、班級（七年三班、701班）、學號（學號：70123、70123_王小明）
+  - 醫院／診所／早療機構、障礙類別／診斷／ADHD 用藥（IEP 需要保留障礙類別時可停用）
+- **名單模式**：原版的「中文姓名」會從內文猜人名，在 IEP 裡容易把「過程有反應」「一張考卷」「兒童教育」誤判成人名，本版本預設關閉（規則頁可開啟）；名單外的名字在預覽圈選一次，全文相同的字一起遮蔽。
+- 部分保留：學校、醫院保留類型（`[學校]國中`），班級保留年級（`七年[班級]`），只有名字時不露字。
 
 ## 目錄
 
@@ -88,13 +93,13 @@
 
 ## 快速開始
 
-**直接使用**：開啟 <https://deanlin.net/data-deidentification/>，拖入檔案即可；沒有檔案的話，頁面下方有「用範例體驗」，一鍵載入 Word／PDF／掃描 PDF／Excel／Markdown 範例（見[範例檔下載與體驗](#範例檔下載與體驗)）。
+**直接使用**：開啟 <https://chuoneone.github.io/sped-deidentification/>，拖入檔案即可；沒有檔案的話，頁面下方有「用範例體驗」，一鍵載入 Word／PDF／掃描 PDF／Excel／Markdown 範例（見[範例檔下載與體驗](#範例檔下載與體驗)）。
 
 **本機執行**：
 
 ```bash
-git clone https://github.com/dean9703111/data-deidentification.git
-cd data-deidentification
+git clone https://github.com/chuoneone/sped-deidentification.git
+cd sped-deidentification
 npm install
 npm run dev        # http://localhost:5173
 ```
@@ -316,15 +321,15 @@ PDF 依原始座標逐頁排版（下圖 1 頁碼、2 頁面），表格與版�
 
 | 範例 | 格式 | 內容 | 下載 |
 |------|------|------|------|
-| 委外服務契約書 | Word | 4 頁契約：立契約書人、十二條條款、附件表格、簽署欄（含頁首頁尾） | [contract.docx](https://deanlin.net/data-deidentification/samples/contract.docx) |
-| 委外服務契約書 | PDF | 同一份契約的 PDF 版本 | [contract.pdf](https://deanlin.net/data-deidentification/samples/contract.pdf) |
-| 報價單 | Word | 3 頁報價單：客戶資料、20 項明細（跨頁表格）、聯絡窗口、簽回欄 | [quotation.docx](https://deanlin.net/data-deidentification/samples/quotation.docx) |
-| 報價單 | PDF | 同一份報價單的 PDF 版本 | [quotation.pdf](https://deanlin.net/data-deidentification/samples/quotation.pdf) |
-| 客戶資料 | Excel | 60 筆客戶＋聯絡紀錄 30 筆＋業務窗口，三個工作表 | [customers.xlsx](https://deanlin.net/data-deidentification/samples/customers.xlsx) |
-| 客服信件 | TXT | 客服回覆信與引用的原始來信 | [support-email.txt](https://deanlin.net/data-deidentification/samples/support-email.txt) |
-| 專案會議紀錄 | Markdown | 出席者、決議表格、待辦清單 | [meeting-notes.md](https://deanlin.net/data-deidentification/samples/meeting-notes.md) |
-| 掃描文件 | 掃描 PDF | 5 頁純影像（需辨識）：中文信函（含手寫批註與機房照片）、藍筆手寫的會員申請表、橫式名冊表格、英文 Invoice（品項金額表、產品照片）、中英雙語名片；模擬掃描的灰階／彩色、輕微傾斜與紙張底色 | [scanned.pdf](https://deanlin.net/data-deidentification/samples/scanned.pdf) |
-| 還原體驗 | Word + CSV | 已去識別化的契約書與其編碼表（在「還原」頁籤載入） | [contract.deid.docx](https://deanlin.net/data-deidentification/samples/contract.deid.docx)、[contract.mapping.csv](https://deanlin.net/data-deidentification/samples/contract.mapping.csv) |
+| 委外服務契約書 | Word | 4 頁契約：立契約書人、十二條條款、附件表格、簽署欄（含頁首頁尾） | [contract.docx](https://chuoneone.github.io/sped-deidentification/samples/contract.docx) |
+| 委外服務契約書 | PDF | 同一份契約的 PDF 版本 | [contract.pdf](https://chuoneone.github.io/sped-deidentification/samples/contract.pdf) |
+| 報價單 | Word | 3 頁報價單：客戶資料、20 項明細（跨頁表格）、聯絡窗口、簽回欄 | [quotation.docx](https://chuoneone.github.io/sped-deidentification/samples/quotation.docx) |
+| 報價單 | PDF | 同一份報價單的 PDF 版本 | [quotation.pdf](https://chuoneone.github.io/sped-deidentification/samples/quotation.pdf) |
+| 客戶資料 | Excel | 60 筆客戶＋聯絡紀錄 30 筆＋業務窗口，三個工作表 | [customers.xlsx](https://chuoneone.github.io/sped-deidentification/samples/customers.xlsx) |
+| 客服信件 | TXT | 客服回覆信與引用的原始來信 | [support-email.txt](https://chuoneone.github.io/sped-deidentification/samples/support-email.txt) |
+| 專案會議紀錄 | Markdown | 出席者、決議表格、待辦清單 | [meeting-notes.md](https://chuoneone.github.io/sped-deidentification/samples/meeting-notes.md) |
+| 掃描文件 | 掃描 PDF | 5 頁純影像（需辨識）：中文信函（含手寫批註與機房照片）、藍筆手寫的會員申請表、橫式名冊表格、英文 Invoice（品項金額表、產品照片）、中英雙語名片；模擬掃描的灰階／彩色、輕微傾斜與紙張底色 | [scanned.pdf](https://chuoneone.github.io/sped-deidentification/samples/scanned.pdf) |
+| 還原體驗 | Word + CSV | 已去識別化的契約書與其編碼表（在「還原」頁籤載入） | [contract.deid.docx](https://chuoneone.github.io/sped-deidentification/samples/contract.deid.docx)、[contract.mapping.csv](https://chuoneone.github.io/sped-deidentification/samples/contract.mapping.csv) |
 
 更多情境（人工調整、錯誤 CSV、自訂規則、格式邊界）的範例在 `examples/`，說明見 [examples/README.md](examples/README.md)；`npm run examples` 可重新產生全部範例。
 
@@ -385,12 +390,12 @@ SEO／AEO／GEO：`index.html` 內含 description、canonical、Open Graph／Twi
 - 字型 `public/fonts/NotoSansTC-Regular.ttf`：Noto Sans TC，© Google，[SIL Open Font License 1.1](https://openfontlicense.org/)。PDF 輸出時以自製的「稀疏子集」只內嵌用到的字形（`src/formats/ttf-subset.ts`，保留原始 glyph ID）；不使用 pdf-lib 內建 subset，因其對大型 CJK 字型的輸出在 macOS 預覽程式會顯示亂碼。
 - 文字辨識：[tesseract.js](https://github.com/naptha/tesseract.js) 與 tesseract.js-core（Apache-2.0），語言模型為 Tesseract `tessdata_best` 的 int 版本（Apache-2.0），建置時由 `vite.config.ts` 複製到站台的 `ocr/`。
 - 掃描範例：手寫字以 [霞鶩文楷 TC](https://github.com/lxgw/LxgwWenkaiTC)、英文簽名以 [Caveat](https://fonts.google.com/specimen/Caveat) 繪製（皆為 SIL OFL 1.1，只在產生範例時使用，網站不載入）；照片與標誌為 Codex 生成的圖片。
-- 本專案以 [MIT License](LICENSE) 授權。
+- 本專案以 [MIT License](LICENSE) 授權，保留原作者 Dean Lin 的著作權聲明；學校與特教文件相關修改 © chuoneone。
 - 範例文件中的人名、公司、地址、電話、證號皆為程式產生的虛構資料。
 
-## 關於作者
+## 原作者
 
-Dean Lin — 歡迎追蹤與交流：
+本工具改自 Dean Lin 的 [文件去識別化工具](https://github.com/dean9703111/data-deidentification)。原作者 Dean Lin — 歡迎追蹤與交流：
 
 | 平台 | 連結 |
 |------|------|
@@ -400,4 +405,4 @@ Dean Lin — 歡迎追蹤與交流：
 | YouTube | <https://www.youtube.com/@dlcorner> |
 | GitHub | <https://github.com/dean9703111> |
 
-如果這個工具對你有幫助，歡迎給個 ⭐，或在社群上分享使用心得。
+如果這個工具對你有幫助，歡迎到[原專案](https://github.com/dean9703111/data-deidentification)給個 ⭐。

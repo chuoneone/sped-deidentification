@@ -70,32 +70,28 @@ function mount(): void {
   }
   const help = el('a', {
     class: 'tab tab-link',
-    href: 'https://github.com/dean9703111/data-deidentification#操作流程',
+    href: 'https://github.com/chuoneone/sped-deidentification#操作流程',
     target: '_blank',
     rel: 'noopener',
     title: '開啟 GitHub 專案頁的操作說明',
   }, '使用說明 ↗');
   nav.append(help);
 
-  const social: [string, string, string][] = [
-    ['Medium', 'https://medium.com/@dean-lin', ICONS.medium],
-    ['Facebook', 'https://www.facebook.com/deanlinbao', ICONS.facebook],
-    ['Threads', 'https://www.threads.com/@deanlin5288', ICONS.threads],
-    ['YouTube', 'https://www.youtube.com/@dlcorner', ICONS.youtube],
-    ['GitHub', 'https://github.com/dean9703111', ICONS.github],
-  ];
+  const social: [string, string, string][] = [['GitHub', 'https://github.com/chuoneone/sped-deidentification', ICONS.github]];
   app.append(
     el('header', { class: 'header' },
-      el('div', { class: 'brand' }, el('h1', {}, '文件去識別化工具'), el('span', { class: 'muted' }, '純前端處理・文件不離開你的電腦')),
+      el('div', { class: 'brand' }, el('h1', {}, '學生資料去識別化工具'), el('span', { class: 'muted' }, '純前端處理・文件不離開你的電腦')),
       nav,
     ),
     panels,
     el('footer', { class: 'footer' },
       el('div', { class: 'footer-inner' },
         el('div', {},
-          el('strong', {}, '文件去識別化工具'),
+          el('strong', {}, '學生資料去識別化工具'),
           el('span', { class: 'muted' }, '　開源專案（MIT）・'),
-          el('a', { href: 'https://github.com/dean9703111/data-deidentification', target: '_blank', rel: 'noopener' }, '原始碼'),
+          el('a', { href: 'https://github.com/chuoneone/sped-deidentification', target: '_blank', rel: 'noopener' }, '原始碼'),
+          el('span', { class: 'muted' }, '・改自 '),
+          el('a', { href: 'https://github.com/dean9703111/data-deidentification', target: '_blank', rel: 'noopener' }, 'Dean Lin 的文件去識別化工具'),
           siteInfo ? el('span', { class: 'muted' }, '・') : null,
           siteInfo ? el('button', { class: 'link-btn', type: 'button', onClick: () => infoDialog.showModal() }, '常見問題') : null,
         ),

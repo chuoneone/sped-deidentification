@@ -28,7 +28,7 @@ function buildDate(): Plugin {
   };
 }
 
-const REPO = 'https://github.com/dean9703111/data-deidentification';
+const REPO = 'https://github.com/chuoneone/sped-deidentification';
 
 /**
  * llms-full.txt: the README as plain Markdown for AI crawlers and agents (llmstxt.org), without the
