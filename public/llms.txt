@@ -6,7 +6,8 @@
 - 原始碼（MIT 授權）：https://github.com/dean9703111/data-deidentification
 - 作者：Dean Lin（https://deanlin.net/）
 - 語言：繁體中文（台灣）；內建偵測規則以台灣常見格式為主
-- 適用情境：把合約、報價單、客戶清單、客服信件、會議紀錄交給外包廠商、AI 服務或研究單位之前先移除個資，事後仍可還原
+- 適用情境：把合約、報價單、客戶清單、客服信件、會議紀錄交給外包廠商、AI 服務（ChatGPT、Claude、Gemini）或研究單位之前先移除個資，事後仍可還原；也適用於紙本掃描檔（申請表、名冊、名片）與公開範例
+- 完整說明（README，Markdown）：https://deanlin.net/data-deidentification/llms-full.txt
 
 ## 主要特點
 
@@ -29,7 +30,7 @@
 1. 在「去識別化」頁籤拖入檔案或貼上文字，按「開始去識別化」
 2. 在預覽中檢視自動偵測結果，滑鼠停留可看原文與實際輸出標記
 3. 人工調整：取消誤判、整批取消某一種類、圈選新增漏抓
-4. 選擇輸出方式（部分保留（預設）／全部隱藏／自訂），按「下載（文件＋編碼表）」一次取得去識別化文件（同格式，檔名加 .deid）與編碼表（*.mapping.csv）
+4. 選擇輸出方式（部分保留（預設）／全部隱藏／自訂）與標記方式（編碼（預設，可還原）／類別／空白佔位），按「下載（文件＋編碼表）」一次取得去識別化文件（同格式，檔名加 .deid）與編碼表（*.mapping.csv）；不需還原的標記方式只下載文件
 5. 需要復原時，到「還原」頁籤上傳去識別化文件與編碼表，下載還原檔（檔名加 .restored）
 
 ## 輸出格式
@@ -48,11 +49,22 @@
 
 - 檔案會上傳嗎？不會，全部在瀏覽器內處理，沒有後端
 - 可以還原嗎？可以，用 CSV 編碼表在「還原」頁籤還原，缺漏的編碼會列出警告
+- 不需要還原，可以只遮蔽嗎？可以，標記方式選「類別」輸出 [姓名]，或選「空白佔位」以「○」取代每個字（分隔符號保留）；不產生編碼表、無法還原
+- 去識別化、假名化、匿名化有什麼不同？預設的編碼＋編碼表屬於假名化（可還原）；類別、空白佔位不產生編碼表，但是否達到匿名化要看保留的字元與其他資訊
+- 交給 ChatGPT 等 AI 之前怎麼移除個資？在本工具中偵測並確認後，下載或複製去識別化內容交給 AI；AI 回覆中的 [姓名:6e679d] 可用編碼表還原，不需還原時選「類別」
+- 掃描的 PDF 可以嗎？可以，瀏覽器內 OCR（繁中＋英文）辨識後遮罩，表格框線、底色與勾選框重繪，傾斜或放反自動轉正；內附 5 頁掃描範例字元召回率約 99%
+- 可以批次處理嗎？一次最多 10 個檔案混合格式，可打包 ZIP、可整批共用編碼
 - 去識別化後還能統計嗎？可以，輸出方式選「自訂」逐類別保留部分字元（例如身分證前 2 碼），或整批共用編碼／匯入舊編碼表讓同一個人跨檔案同編碼
 - 要收費嗎？免費，MIT 開源；`npm run build` 產出的 dist/ 可放到任何靜態空間自行架設，或直接以檔案開啟
 - PDF 為什麼不用黑框覆蓋？覆蓋法底層文字仍可被複製；本工具以文字重建輸出，敏感文字真正從檔案移除
 
+## English summary
+
+Data De-identification Tool is a free, open-source, browser-only tool for redacting personal data (PII) in Traditional Chinese (Taiwan) documents: names, national ID numbers, phone numbers, addresses, email addresses, company names and tax IDs in PDF (including scanned PDFs via in-browser OCR), Word, Excel, TXT and Markdown. Every match can be reviewed before export; output keeps the original format. Values become reversible codes with a CSV mapping table, or category labels / ○ placeholders when no restoring is needed. Files never leave the browser.
+
 ## 參考連結
+
+- [完整說明（Markdown，供 AI 閱讀）](https://deanlin.net/data-deidentification/llms-full.txt)
 
 - [完整操作說明與截圖（README）](https://github.com/dean9703111/data-deidentification#readme)
 - [偵測規則說明](https://github.com/dean9703111/data-deidentification#偵測規則)

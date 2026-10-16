@@ -3,19 +3,54 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 
-/** Stamps today's date into the `__BUILD_DATE__` placeholder of public/sitemap.xml after it is copied to the output dir. */
-function sitemapLastmod(): Plugin {
+const today = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * Stamps today's date into the `__BUILD_DATE__` placeholders: index.html (the page's last update and
+ * dateModified) and public/sitemap.xml, the latter after it is copied to the output dir.
+ */
+function buildDate(): Plugin {
   let outDir = 'dist';
   return {
-    name: 'sitemap-lastmod',
-    apply: 'build',
+    name: 'build-date',
     configResolved(config) {
       outDir = resolve(config.root, config.build.outDir);
     },
+    transformIndexHtml: (html) => html.replaceAll('__BUILD_DATE__', today()),
     closeBundle() {
       const file = resolve(outDir, 'sitemap.xml');
-      const today = new Date().toISOString().slice(0, 10);
-      writeFileSync(file, readFileSync(file, 'utf8').replace('__BUILD_DATE__', today));
+      try {
+        writeFileSync(file, readFileSync(file, 'utf8').replace('__BUILD_DATE__', today()));
+      } catch {
+        // not a site build (e.g. the test runner)
+      }
+    },
+  };
+}
+
+const REPO = 'https://github.com/dean9703111/data-deidentification';
+
+/**
+ * llms-full.txt: the README as plain Markdown for AI crawlers and agents (llmstxt.org), without the
+ * screenshots and badges, and with its relative links made absolute.
+ */
+function llmsFull(): Plugin {
+  let root = '.';
+  return {
+    name: 'llms-full',
+    apply: 'build',
+    configResolved(config) {
+      root = config.root;
+    },
+    generateBundle() {
+      const readme = readFileSync(resolve(root, 'README.md'), 'utf8')
+        .replace(/^\[?!\[[^\]]*\]\([^)]*\)(\]\([^)]*\))?\s*$/gm, '') // images and image badges on their own line
+        .replace(/<p align="center">[\s\S]*?<\/p>\n?/g, '') // the centred screenshot
+        .replace(/\]\(#([^)]+)\)/g, `](${REPO}#$1)`)
+        .replace(/\]\((?!https?:|mailto:)([^)]+)\)/g, `](${REPO}/blob/main/$1)`)
+        .replace(/\n{3,}/g, '\n\n');
+      const header = `> 本檔為 ${REPO} 的 README（完整操作說明），提供給 AI 搜尋與代理程式閱讀；網站摘要見 llms.txt。更新：${today()}\n\n`;
+      this.emitFile({ type: 'asset', fileName: 'llms-full.txt', source: readme.replace(/^(# .*\n)/, `$1\n${header}`) });
     },
   };
 }
@@ -58,7 +93,7 @@ function ocrAssets(): Plugin {
 
 export default defineConfig({
   base: './',
-  plugins: [sitemapLastmod(), ocrAssets()],
+  plugins: [buildDate(), llmsFull(), ocrAssets()],
   build: {
     target: 'es2022',
   },
