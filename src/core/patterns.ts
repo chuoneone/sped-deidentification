@@ -91,21 +91,29 @@ const NAME_STOPLIST = new Set([
   '安親', '安定', '方便', '方能', '方可', '方才', '包容', '向學', '向心', '向前', '連絡', '連帶', '連貫', '高興', '高年',
   '高低', '高分', '高頻', '高風', '周遭', '周全', '周到', '曾有', '曾於', '曾在', '曾被', '曾接', '曾因', '曾經', '戴眼',
   '戴口', '馬虎', '毛筆', '田徑', '舒適', '舒緩', '舒壓', '凌亂', '洪亮', '莊重', '甘願', '游移', '古怪', '殷切', '鍾愛',
-  '湯匙', '石頭', '康樂', '程度', '黎明', '蘇醒', '江湖', '包班', '冉冉',
+  '湯匙', '石頭', '康樂', '程度', '黎明', '蘇醒', '江湖', '包班', '冉冉', '金庸',
 ]);
 
-/** The character before a surname that makes it part of a word: 兒童、學童、身高、健康… */
-const WORD_BEFORE_SURNAME: Record<string, RegExp> = {
-  童: /[兒學孩幼孤神]$/u,
-  高: /[身提最較偏過太很升]$/u,
-  康: /[健小安]$/u,
-  溫: /[體氣水常低]$/u,
-  管: /[控主保監列儘看]$/u,
-  簡: /[精]$/u,
-  游: /[上下中]$/u,
-  連: /[相串牽關]$/u,
-  安: /[平不公晚治]$/u,
+/**
+ * Characters before a surname that make it the end of an everyday word, not a name:
+ * 過程、課程、一張、緊張、提高、感謝、容易、方向、分鐘、明白、兒童、健康…
+ */
+const WORD_BEFORE_SURNAME: Record<string, string> = {
+  程: '過課工流行進療全規章日議單專啟起航路射里前', 張: '一兩幾每整緊主擴誇開伸囂慌聲', 高: '身提最較偏過太很升崇增拔清',
+  謝: '感多道代凋答致銘', 金: '現黃資基獎租押定合學罰稅', 王: '國帝霸親大', 李: '行', 林: '森樹叢竹園山雨', 黃: '金蛋枯焦',
+  許: '也或允些期默讚稱特准少多', 周: '一每上下本四圓', 葉: '樹茶落綠枝中末', 莊: '村農山錢', 江: '長', 羅: '張網包',
+  簡: '精書竹', 游: '上下中', 施: '實措設布', 沈: '深消低下', 梁: '橋棟脊', 顏: '容笑紅', 翁: '漁老富', 孫: '子兒曾外王長',
+  戴: '擁愛穿配佩', 傅: '師', 丁: '園人', 馬: '人兵斑木騎賽河', 董: '古', 溫: '體氣水常低保升高', 唐: '荒', 藍: '蔚天深淺湛',
+  石: '岩化寶鑽礦隕磁基碎', 古: '復懷千考自上遠', 紀: '世年風違綱軍', 連: '相串牽關接', 湯: '喝熱雞煲菜清米', 田: '稻農油梯心種耕',
+  康: '健小安', 白: '明空坦蛋黑雪灰表告獨對旁潔', 鐘: '時鬧分', 塗: '糊', 嚴: '莊威尊戒森', 童: '兒學孩幼孤神頑', 陸: '大登著內',
+  夏: '盛初華立消', 錢: '金價零有賺花存本付給賠省用車工掙', 伍: '隊入落退行', 倪: '端', 甘: '不', 秦: '先',
+  官: '器法警軍長五考外教做當', 辛: '艱酸', 戚: '親休哀', 易: '容簡交貿輕平不難變', 祝: '慶預恭',
+  向: '方傾意志走導動轉面偏趨內外性取指朝去一雙反正', 凌: '欺霸', 包: '書錢麵背紅打承皮荷外草菜', 牛: '吹蝸黃水犀鬥',
+  管: '控主保監列儘看水血吸接托不', 毛: '羽眉皮睫一汗體', 安: '平不公晚治',
 };
+
+/** Characters that essentially never stand in a given name: 過程有反應、課程需要、感謝的. */
+const NOT_IN_GIVEN_NAME = /[的了是在與及於所已將因由係即並或也則不無非對被卻還又但而都就須要到來去這那該此每們呢嗎吧啊麼什怎很最個需讓使給把當有]/u;
 
 /** "X方" in contracts/legal text (甲方、乙方、雙方、他方…) is a party, not a person surnamed 方. */
 const PARTY_PREFIX = /[甲乙丙丁雙各買賣我他貴對本該多官軍校院廠資勞前後男女一二三四五六七八九十任另每]$/u;
@@ -115,7 +123,10 @@ function isPlausibleName(m: string, before = ''): boolean {
   if (/(.)\1/.test(m) && m.length === 2) return false;
   if (m.startsWith('方') && PARTY_PREFIX.test(before)) return false;
   if (m.startsWith('何') && /[任如為幾若奈無]$/u.test(before)) return false; // 任何、如何、幾何…
-  if (WORD_BEFORE_SURNAME[m[0]]?.test(before)) return false;
+  const prev = before.slice(-1);
+  if (prev && WORD_BEFORE_SURNAME[m[0]]?.includes(prev)) return false;
+  const surnameLen = COMPOUND_SURNAMES.split('|').some((c) => m.startsWith(c)) ? 2 : 1;
+  if (NOT_IN_GIVEN_NAME.test(m.slice(surnameLen))) return false;
   return true;
 }
 

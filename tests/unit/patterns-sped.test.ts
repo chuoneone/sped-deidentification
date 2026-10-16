@@ -120,3 +120,16 @@ describe('zh-name in IEP wording', () => {
     expect(matches('sped-school', '能完成國中一年級程度數學運算')).toEqual([]);
   });
 });
+
+describe('zh-name in IEP narrative', () => {
+  it('skips surnames that end an everyday word or names with function characters', () => {
+    const text =
+      '施測過程有反應不愛寫字，在學校從事美勞課程需要做較精細的動作。考了一張考卷，成績提高更多。' +
+      '感謝的話，喜歡看金庸小說。容易緊張，十分鐘內完成，明白老師的意思，具正向行為。';
+    expect(matches('zh-name', text)).toEqual([]);
+  });
+
+  it('keeps names at the very start, and ordinary names', () => {
+    expect(matches('zh-name', '程大偉說明，張志明同意，謝佩玲記錄')).toEqual(['程大偉', '張志明', '謝佩玲']);
+  });
+});
