@@ -1,6 +1,6 @@
 export type DocFormat = 'txt' | 'md' | 'docx' | 'xlsx' | 'pdf';
 
-export const CATEGORIES = ['姓名', '身分證', '手機', '市話', '地址', '電子郵件', '公司', '統編', '識別碼'] as const;
+export const CATEGORIES = ['姓名', '身分證', '手機', '市話', '地址', '電子郵件', '公司', '統編', '識別碼', '國際電話', '信用卡', 'SSN', 'IBAN', 'IP', '生日'] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 /** How much of a detected value stays visible outside the marker (see core/retention.ts). */
@@ -23,8 +23,15 @@ export interface Pattern {
   example: string;
   enabled: boolean;
   retention?: Retention;
-  /** Builtin-only second-pass filter (e.g. checksum). `before` is the text right before the match. */
-  validate?: (match: string, before: string) => boolean;
+  /** Builtin-only: the rules page group (台灣格式／國際與通用格式); custom rules form their own group. */
+  group?: 'tw' | 'intl';
+  /** Builtin-only: how matches are checked beyond the RegExp (checksum, valid ranges), shown with the rule. */
+  note?: string;
+  /**
+   * Builtin-only second-pass filter (e.g. checksum). `before` is the text right before the match.
+   * A number accepts only that many leading characters (a phone number that ran on into the next one).
+   */
+  validate?: (match: string, before: string) => boolean | number;
 }
 
 export interface RedactionItem {

@@ -38,6 +38,15 @@ async function copyToClipboard(text: string): Promise<void> {
   if (!ok) throw new Error('copy failed');
 }
 
+/** What is open on the page: the form, and the rules whose details are shown. Not stored. */
+const ui = { formOpen: false, details: new Set<string>(), closedGroups: new Set<string>() };
+
+const GROUPS = [
+  { id: 'tw', title: '台灣格式' },
+  { id: 'intl', title: '國際與通用格式' },
+  { id: 'custom', title: '自訂規則' },
+] as const;
+
 export function createPatternsView(): HTMLElement {
   const root = el('section', { class: 'view patterns-view' });
   render(root);
@@ -48,61 +57,99 @@ function render(root: HTMLElement, editing: CustomPatternConfig | null = null): 
   clear(root);
   const config = loadConfig();
   const patterns = getEffectivePatterns(config);
+  const form = ui.formOpen || editing ? renderForm(root, config, editing) : null;
   root.append(
-    el('h2', {}, '偵測規則'),
-    el('p', { class: 'muted' }, '所有規則皆以正規表達式（JavaScript RegExp，flags: gu）比對。內建規則可停用但不可修改；自訂規則可新增、編輯、刪除。設定僅儲存在你的瀏覽器中。'),
-    el('p', { class: 'muted' }, '「保留」欄是輸出方式選「自訂」時的預設值。要調整保留多少字元（例如身分證保留前 2 碼），請到「去識別化」頁預覽上方的「輸出方式」設定，再按「設為預設」。'),
-    renderTable(root, config, patterns),
-    renderForm(root, config, editing),
+    el('div', { class: 'rules-head' },
+      el('h2', {}, '偵測規則'),
+      form ? null : button('＋ 新增自訂規則', () => {
+        ui.formOpen = true;
+        render(root);
+      }, 'btn btn-primary add-rule'),
+    ),
+    el('p', { class: 'muted small' }, '內建規則可停用、不可修改；自訂規則可新增、編輯、刪除。點「查看規則」可看完整的比對規則（JavaScript RegExp，flags: gu）、檢核方式與預設保留方式。設定只存在你的瀏覽器。'),
+    ...(form ? [form] : []),
+    ...GROUPS.map((g) => renderGroup(root, config, g, patterns.filter((p) => (g.id === 'custom' ? p.source === 'custom' : p.group === g.id)))),
   );
+  form?.querySelector<HTMLInputElement>('input')?.focus();
 }
 
-function renderTable(root: HTMLElement, config: PatternConfig, patterns: Pattern[]): HTMLElement {
-  const rows = patterns.map((p) => {
-    const toggle = el('input', { type: 'checkbox' }) as HTMLInputElement;
-    toggle.checked = p.enabled;
-    toggle.addEventListener('change', () => {
-      let next: PatternConfig;
-      if (p.source === 'builtin') next = setBuiltinEnabled(config, p.id, toggle.checked);
-      else next = upsertCustom(config, { ...(config.customPatterns.find((c) => c.id === p.id)!), enabled: toggle.checked });
-      saveConfig(next);
-      toast(`${p.name} 已${toggle.checked ? '啟用' : '停用'}`, 'success', 1500);
-      render(root);
-    });
-    const actions = el('td', { class: 'col-actions' });
-    if (p.source === 'custom') {
-      const custom = config.customPatterns.find((c) => c.id === p.id)!;
-      actions.append(
-        button('編輯', () => render(root, custom), 'btn btn-small'),
-        button('刪除', () => {
-          if (!confirm(`刪除自訂規則「${p.name}」？`)) return;
-          saveConfig(removeCustom(config, p.id));
-          render(root);
-        }, 'btn btn-small btn-danger'),
-      );
-    }
-    const kept = p.retention && p.retention.mode !== 'none';
-    return el(
-      'tr',
-      { class: p.enabled ? '' : 'row-disabled' },
-      el('td', { class: 'col-center' }, el('label', { class: 'switch' }, toggle)),
-      el('td', { class: 'col-nowrap' }, p.name),
-      el('td', { class: 'col-nowrap' }, el('span', { class: `badge badge-${p.category}` }, p.category)),
-      el('td', {}, el('code', { class: 'regex' }, p.regex.length > 90 ? p.regex.slice(0, 90) + '…' : p.regex)),
-      el('td', { class: 'muted' }, p.example),
-      el('td', { class: 'col-nowrap' }, el('span', { class: 'tag' }, p.source === 'builtin' ? '內建' : '自訂')),
-      el('td', { class: 'col-nowrap' }, el('span', { class: kept ? 'tag tag-kept' : 'muted small' }, describeRetention(p.retention))),
-      actions,
-    );
+/** Switches a rule on or off in the stored settings. */
+function setEnabled(config: PatternConfig, p: Pattern, enabled: boolean): PatternConfig {
+  if (p.source === 'builtin') return setBuiltinEnabled(config, p.id, enabled);
+  return upsertCustom(config, { ...config.customPatterns.find((c) => c.id === p.id)!, enabled });
+}
+
+function renderGroup(root: HTMLElement, config: PatternConfig, group: (typeof GROUPS)[number], patterns: Pattern[]): HTMLElement {
+  const on = patterns.filter((p) => p.enabled).length;
+  const all = el('input', { type: 'checkbox', class: 'group-toggle', 'aria-label': `${group.title}全部啟用` }) as HTMLInputElement;
+  all.checked = patterns.length > 0 && on === patterns.length;
+  all.indeterminate = on > 0 && on < patterns.length;
+  all.disabled = patterns.length === 0;
+  // Inside the summary: a click on the box must not also fold the group.
+  all.addEventListener('click', (e) => e.stopPropagation());
+  all.addEventListener('change', () => {
+    let next = config;
+    for (const p of patterns) next = setEnabled(next, p, all.checked);
+    saveConfig(next);
+    toast(`${group.title}已全部${all.checked ? '啟用' : '停用'}`, 'success', 1500);
+    render(root);
   });
-  return el(
-    'div',
-    { class: 'table-wrap' },
-    el('table', { class: 'table' },
-      el('thead', {}, el('tr', {}, el('th', { class: 'col-center col-nowrap' }, '啟用'), el('th', {}, '名稱'), el('th', {}, '類別'), el('th', {}, '比對規則'), el('th', {}, '範例'), el('th', {}, '來源'), el('th', {}, '保留'), el('th', {}, ''))),
-      el('tbody', {}, ...rows),
+  const box = el('details', { class: 'rule-group', 'data-group': group.id, open: !ui.closedGroups.has(group.id) && (group.id !== 'custom' || patterns.length > 0) }) as HTMLDetailsElement;
+  box.addEventListener('toggle', () => (box.open ? ui.closedGroups.delete(group.id) : ui.closedGroups.add(group.id)));
+  box.append(
+    el('summary', { class: 'rule-group-head' },
+      el('span', { class: 'rule-group-title' }, `${group.title}（${patterns.length}）`),
+      el('label', { class: 'group-toggle-label muted small' }, all, ' 全部啟用'),
     ),
+    patterns.length === 0
+      ? el('p', { class: 'muted small rule-empty' }, '尚無自訂規則。按「＋ 新增自訂規則」可以用正規表達式新增，例如員工編號、病歷號碼。')
+      : el('div', { class: 'rule-list' }, ...patterns.flatMap((p) => renderRule(root, config, p))),
   );
+  return box;
+}
+
+function renderRule(root: HTMLElement, config: PatternConfig, p: Pattern): HTMLElement[] {
+  const toggle = el('input', { type: 'checkbox', class: 'rule-toggle', 'aria-label': `啟用 ${p.name}` }) as HTMLInputElement;
+  toggle.checked = p.enabled;
+  toggle.addEventListener('change', () => {
+    saveConfig(setEnabled(config, p, toggle.checked));
+    toast(`${p.name} 已${toggle.checked ? '啟用' : '停用'}`, 'success', 1500);
+    render(root);
+  });
+  const open = ui.details.has(p.id);
+  const more = button(open ? '收合' : '查看規則', () => {
+    if (open) ui.details.delete(p.id);
+    else ui.details.add(p.id);
+    render(root);
+  }, 'btn btn-small btn-ghost rule-more');
+  more.setAttribute('aria-expanded', String(open));
+  const row = el('div', { class: `rule-row${p.enabled ? '' : ' row-disabled'}`, 'data-id': p.id },
+    el('label', { class: 'switch' }, toggle),
+    el('span', { class: 'rule-name' }, p.name),
+    el('span', { class: `badge badge-${p.category}` }, p.category),
+    el('span', { class: 'rule-example muted small', title: p.example }, p.example),
+    more,
+  );
+  if (!open) return [row];
+  const custom = config.customPatterns.find((c) => c.id === p.id);
+  const kept = p.retention && p.retention.mode !== 'none';
+  const detail = el('dl', { class: 'rule-detail' },
+    el('dt', {}, '比對規則'), el('dd', {}, el('code', { class: 'regex' }, p.regex)),
+    p.note ? el('dt', {}, '檢核') : null, p.note ? el('dd', {}, p.note) : null,
+    el('dt', {}, '預設保留'), el('dd', {}, el('span', { class: kept ? 'tag tag-kept' : '' }, describeRetention(p.retention)), el('span', { class: 'muted small' }, '（輸出設定選「自訂」時套用；要調整請到「去識別化」頁按「設為預設」）')),
+    el('dt', {}, '來源'), el('dd', {}, p.source === 'builtin' ? '內建' : '自訂'),
+    custom
+      ? el('dd', { class: 'rule-actions' },
+          button('編輯', () => render(root, custom), 'btn btn-small'),
+          button('刪除', () => {
+            if (!confirm(`刪除自訂規則「${p.name}」？`)) return;
+            saveConfig(removeCustom(config, p.id));
+            render(root);
+          }, 'btn btn-small btn-danger'),
+        )
+      : null,
+  );
+  return [row, detail];
 }
 
 function renderForm(root: HTMLElement, config: PatternConfig, editing: CustomPatternConfig | null): HTMLElement {
@@ -155,6 +202,7 @@ function renderForm(root: HTMLElement, config: PatternConfig, editing: CustomPat
       });
       saveConfig(next);
       toast(editing ? '規則已更新' : '規則已新增', 'success');
+      ui.formOpen = false;
       render(root);
     } catch (e) {
       toast((e as Error).message, 'error');
@@ -187,11 +235,14 @@ function renderForm(root: HTMLElement, config: PatternConfig, editing: CustomPat
       el('label', {}, '類別', category),
       el('label', { class: 'span-2' }, '比對規則（RegExp）', regex, regexError),
       el('label', { class: 'span-2' }, '測試文字', sample, hits),
-      el('p', { class: 'muted small span-2' }, '要保留部分字元（例如員工證保留第 1 碼＝部門代碼），請在「去識別化」頁的「輸出方式」選「自訂」調整，再按「設為預設」。'),
+      el('p', { class: 'muted small span-2' }, '要保留部分字元（例如員工證保留第 1 碼＝部門代碼），請在「去識別化」頁的輸出設定把「保留」選「自訂」調整，再按「設為預設」。'),
     ),
     el('div', { class: 'form-actions' },
       button(editing ? '儲存變更' : '新增規則', save, 'btn btn-primary'),
-      editing ? button('取消編輯', () => render(root), 'btn btn-ghost') : null,
+      button(editing ? '取消編輯' : '取消', () => {
+        ui.formOpen = false;
+        render(root);
+      }, 'btn btn-ghost'),
       editing ? null : button('填入範例', fillSample, 'btn'),
       el('button', { class: 'btn', type: 'button', 'data-tip': AI_PROMPT, onClick: () => void copyPrompt() }, '複製 AI 提示詞'),
     ),

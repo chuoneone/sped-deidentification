@@ -154,7 +154,7 @@ await setPanel(true);
 await page.click('input[name=output-mode][value=preview]');
 await new Promise((r) => setTimeout(r, 300));
 await setPanel(true);
-await annotate(page, [['.output-modes', 1], ['.output-panel .notice', 2], ['.output-panel .table-wrap', 3]]);
+await annotate(page, [['.output-rows', 1], ['.output-notice', 2], ['details.by-category > summary', 3], ['details.code-advanced > summary', 4]]);
 await shot(page, '02d-output-preview');
 await page.click('input[name=output-mode][value=custom]');
 await new Promise((r) => setTimeout(r, 300));
@@ -177,7 +177,10 @@ await new Promise((r) => setTimeout(r, 300));
 await setPanel(true);
 await page.evaluate(() => [...document.querySelectorAll('.output-table tr')].find((tr) => tr.textContent!.includes('身分證'))!.classList.add('shot-row'));
 await annotate(page, [['.output-table .shot-row', 1], ['.output-panel .form-actions', 2], ['.status-line .notice', 3]]);
+// a taller viewport so the 設為預設 button under the category table stays in the shot with the toolbar
+await page.setViewport({ width: 1440, height: 1010, deviceScaleFactor: 2 });
 await shot(page, '02e-output-custom');
+await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 2 });
 // back to the default 部分保留 with the panel collapsed for the remaining steps
 await page.click('input[name=output-mode][value=preview]');
 await new Promise((r) => setTimeout(r, 300));
@@ -186,13 +189,12 @@ await setPanel(true);
 await page.click('input[name=marker-style][value=blank]');
 await new Promise((r) => setTimeout(r, 300));
 await setPanel(true);
-await page.evaluate(() => document.querySelector('.marker-modes')!.scrollIntoView({ block: 'center' }));
-await annotate(page, [['.marker-modes', 1], ['.marker-notice', 2]]);
+await annotate(page, [['.output-row[data-row=marker] .segmented', 1], ['.output-notice', 2], ['.status-mode', 3]]);
 await shot(page, '02i-marker-style');
 await setPanel(false);
 await page.evaluate(() => window.scrollTo(0, 0));
 await new Promise((r) => setTimeout(r, 300));
-await annotate(page, [['.mode-pill-final', 1], ['.preview .mark', 2], ['.btn-strong', 3], ['.status-line > span', 4]]);
+await annotate(page, [['.mode-pill-final', 1], ['.preview .mark', 2], ['.btn-strong', 3], ['.status-mode', 4]]);
 await shot(page, '02j-marker-preview');
 await setPanel(true);
 await page.click('input[name=marker-style][value=code]');
@@ -222,6 +224,8 @@ await new Promise((r) => setTimeout(r, 200));
 
 // 4b. Category switched off in the output panel (市話) + expanded list showing cancelled items
 await setPanel(true);
+await page.evaluate(() => ((document.querySelector('details.by-category') as HTMLDetailsElement).open = true));
+await new Promise((r) => setTimeout(r, 200));
 await page.evaluate(() => {
   const row = [...document.querySelectorAll('.output-table tr')].find((tr) => tr.textContent!.includes('市話'))!;
   (row.querySelector('input[type=checkbox]') as HTMLInputElement).click();
@@ -268,10 +272,14 @@ await page.evaluate(() => ((document.querySelector('.menu') as HTMLDetailsElemen
 // 6. Patterns page with a custom rule being tested
 await page.click('[data-tab="patterns"]');
 await new Promise((r) => setTimeout(r, 300));
+await page.click('.rule-row[data-id="tw-id"] .rule-more');
+await new Promise((r) => setTimeout(r, 200));
+await page.click('button.add-rule');
+await new Promise((r) => setTimeout(r, 200));
 await page.type('.form-card input[placeholder="例如：員工編號"]', '員工編號');
 await page.type('.form-card input.mono', 'EMP-\\d{6}');
 await page.type('.form-card textarea', '承辦 EMP-004521 與 EMP-000001');
-await annotate(page, [['.table-wrap', 1], ['.switch', 2], ['.form-card', 3], ['.hits', 4], ['.patterns-view thead th:nth-child(7)', 5]]);
+await annotate(page, [['.form-card', 1], ['.hits', 2], ['.rule-group[data-group=tw] > summary', 3], ['.rule-row .switch', 4], ['.rule-detail', 5]]);
 await shot(page, '06-patterns', true);
 
 

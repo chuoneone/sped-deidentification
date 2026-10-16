@@ -60,6 +60,9 @@ interface State {
   showList: boolean;
   /** The output settings panel is collapsed to a one-line summary by default. */
   panelOpen: boolean;
+  /** Its 依類別調整 and 進階 sections, open for the session once opened (open anyway under 自訂). */
+  categoriesOpen: boolean;
+  advancedOpen: boolean;
   /** Every document shares one code book. */
   sharedCodes: boolean;
   /** Imported mapping table; its codes are reused for identical values. */
@@ -83,6 +86,8 @@ const state: State = {
   disabledCategories: new Set(),
   showList: false,
   panelOpen: false,
+  categoriesOpen: false,
+  advancedOpen: false,
   sharedCodes: false,
   imported: null,
   sharedBook: null,
@@ -420,6 +425,11 @@ function menu(label: string, items: ([string, () => void] | null)[]): HTMLElemen
   return box;
 }
 
+const withTip = (e: HTMLElement, tip: string): HTMLElement => {
+  e.dataset.tip = tip;
+  return e;
+};
+
 function renderToolbar(root: HTMLElement): HTMLElement {
   const d = current();
   const doc = d.doc;
@@ -427,14 +437,11 @@ function renderToolbar(root: HTMLElement): HTMLElement {
   const many = state.docs.length > 1;
   const partialCats = [...new Set(d.items.filter((it) => it.active && isPartial(it)).map((it) => it.category))];
   const text = doc.format === 'txt' || doc.format === 'md';
-  const status = [
-    `輸出方式：${OUTPUT_MODE_LABELS[state.outputMode]}`,
+  const mode = [
+    `${OUTPUT_MODE_LABELS[state.outputMode]}・${MARKER_LABELS[state.marker]}（${restorable() ? '可還原' : '無法還原'}）`,
     restorable() && state.sharedCodes ? '整批共用編碼' : '',
     restorable() && state.imported ? `沿用「${state.imported.fileName}」的編碼` : '',
   ].filter(Boolean);
-  const lead = restorable()
-    ? '編碼表是還原的唯一憑證，請妥善保管。'
-    : `標記方式：${MARKER_LABELS[state.marker]}（不需還原），下載只有去識別化文件，無法還原。`;
   const moreItems: ([string, () => void] | null)[] = [
     many ? [restorable() ? '下載此檔（文件＋編碼表）' : '下載此檔', () => void downloadBoth(d, root)] : null,
     restorable() ? ['只下載去識別化文件', () => void downloadDoc(d, root)] : null,
@@ -459,15 +466,16 @@ function renderToolbar(root: HTMLElement): HTMLElement {
         button(many ? '全部清除' : '換一個檔案', () => resetAll(root), 'btn btn-ghost'),
         many
           ? button(`打包下載全部（${state.docs.length} 個檔案）`, () => void downloadAll(root), 'btn btn-primary btn-strong')
-          : button(restorable() ? '下載（文件＋編碼表）' : '下載去識別化文件', () => void downloadBoth(d, root), 'btn btn-primary btn-strong'),
+          : withTip(button(restorable() ? '下載（文件＋編碼表）' : '下載去識別化文件', () => void downloadBoth(d, root), 'btn btn-primary btn-strong'), restorable() ? '編碼表是還原的唯一憑證，請妥善保管' : '不需還原：只下載去識別化文件'),
         more,
       ),
     ),
     el('div', { class: 'toolbar-row status-line muted small' },
-      el('span', {}, `${lead}${status.join('・')}`,
-        limits ? el('span', { class: 'status-info', 'data-tip': limits, tabindex: '0' }, ' ⓘ 格式限制') : null,
-      ),
-      partialCats.length ? el('span', { class: 'notice notice-inline' }, `⚠ 含部分保留欄位：${partialCats.join('、')}（保留的字元會出現在輸出中，並非完全匿名）`) : null,
+      el('span', { class: 'status-mode' }, mode.join('・')),
+      limits ? el('span', { class: 'status-info', 'data-tip': limits, tabindex: '0' }, 'ⓘ 格式限制') : null,
+      partialCats.length
+        ? el('span', { class: 'status-partial notice notice-inline', 'data-tip': `${partialCats.join('、')}：保留的字元會出現在輸出中，並非完全匿名`, tabindex: '0' }, `⚠ 含部分保留（${partialCats.length} 類）`)
+        : null,
     ),
   );
 }
@@ -515,7 +523,7 @@ function renderWorkspace(root: HTMLElement): HTMLElement {
   const headTools = el('div', { class: 'preview-head-tools' });
   const previewWrap = el('div', { class: 'preview-wrap' },
     el('div', { class: 'preview-head' }, el('h3', {}, '去識別化預覽'), headTools),
-    el('p', { class: 'muted small' }, `${previewHint(d.doc)}預覽即下載後的樣子（編碼以 [類別] 表示）；滑鼠移到標記可看原文與實際編碼，點擊標記可取消，圈選文字可手動新增。`),
+    el('p', { class: 'muted small preview-desc' }, `預覽即下載後的樣子${restorable() ? '（編碼以 [類別] 顯示）' : ''}：點標記可取消、圈選文字可新增，滑鼠停留可看原文。${previewHint(d.doc)}`),
     outputHost,
     preview,
   );
@@ -560,32 +568,40 @@ function renderOutputPanel(root: HTMLElement): HTMLElement {
     applyOutputModeToAll();
     render(root); // preview, toolbar status and partial-retention notice all change
   };
-  const radios = (Object.keys(OUTPUT_MODE_LABELS) as OutputMode[]).map((mode) => {
-    const r = el('input', { type: 'radio', name: 'output-mode', value: mode }) as HTMLInputElement;
-    r.checked = state.outputMode === mode;
-    r.addEventListener('change', () => setMode(mode));
-    return el('label', { class: 'mode-option' }, r, el('span', {}, el('strong', {}, OUTPUT_MODE_LABELS[mode]), el('span', { class: exampleClass('small muted') }, modeExample(mode, state.marker))));
-  });
   // The output text changes, codes do not: every document needs downloading again.
   const setMarker = (marker: MarkerStyle) => {
     state.marker = marker;
     for (const d of state.docs) markDirty(d);
     render(root);
   };
-  const markerRadios = (Object.keys(MARKER_LABELS) as MarkerStyle[]).map((marker) => {
-    const r = el('input', { type: 'radio', name: 'marker-style', value: marker }) as HTMLInputElement;
-    r.checked = state.marker === marker;
-    r.addEventListener('change', () => setMarker(marker));
-    const [example, note] = MARKER_NOTES[marker];
-    return el('label', { class: 'mode-option' }, r, el('span', {}, el('strong', {}, MARKER_LABELS[marker]), el('span', { class: exampleClass('small muted', marker) }, example), el('span', { class: 'small muted' }, note)));
-  });
+  /** One choice as a row of joined buttons (radios underneath, so keyboard use is unchanged). */
+  const segmented = <T extends string>(name: string, labels: Record<T, string>, current: T, onChange: (v: T) => void) =>
+    el('div', { class: 'segmented', role: 'radiogroup' },
+      ...(Object.keys(labels) as T[]).map((v) => {
+        const r = el('input', { type: 'radio', name, value: v }) as HTMLInputElement;
+        r.checked = current === v;
+        r.addEventListener('change', () => onChange(v));
+        return el('label', { class: 'segment' }, r, el('span', {}, labels[v]));
+      }),
+    );
+  const [markerExample, markerNote] = MARKER_NOTES[state.marker];
+  const notices = [
+    state.outputMode === 'preview' ? '部分保留會露出姓氏、證號前 2 碼、手機前 4 碼等，並非完全匿名' : '',
+    restorable() ? '' : `不需還原：只下載文件、沒有編碼表${state.marker === 'blank' ? '；空白佔位會保留原本的字數，需要更高的匿名性請選「類別」' : ''}`,
+  ].filter(Boolean);
+  const section = (cls: string, title: string, open: boolean, onToggle: (open: boolean) => void, ...body: (HTMLElement | null)[]) => {
+    const d = el('details', { class: `output-section ${cls}`, open }, el('summary', {}, title), ...body.filter((b): b is HTMLElement => b !== null)) as HTMLDetailsElement;
+    d.addEventListener('toggle', () => onToggle(d.open));
+    return d;
+  };
+  const present = CATEGORIES.filter((c) => state.docs.some((d) => d.items.some((it) => it.category === c))).length;
   const active = state.docs.reduce((n, d) => n + d.items.filter((it) => it.active).length, 0);
   const box = el('details', { class: 'output-panel', open: state.panelOpen }) as HTMLDetailsElement;
   // The summary must read as a control, not a caption: a mode pill plus an explicit 調整 ▾ button.
-  const action = el('span', { class: 'btn btn-small summary-action' }, state.panelOpen ? '收合 ▴' : '調整輸出方式 ▾');
+  const action = el('span', { class: 'btn btn-small summary-action' }, state.panelOpen ? '收合 ▴' : '調整 ▾');
   box.addEventListener('toggle', () => {
     state.panelOpen = box.open;
-    action.textContent = box.open ? '收合 ▴' : '調整輸出方式 ▾';
+    action.textContent = box.open ? '收合 ▴' : '調整 ▾';
   });
   const saveDefault = () => {
     let config = loadConfig();
@@ -601,38 +617,44 @@ function renderOutputPanel(root: HTMLElement): HTMLElement {
       }
     }
     state.overrides.clear();
-    toast('已設為預設：之後選「自訂」會套用這些保留方式（可在「偵測規則」頁的「保留」欄查看）', 'success', 5000);
+    toast('已設為預設：之後選「自訂」會套用這些保留方式（可在「偵測規則」頁各規則的「查看規則」中看到）', 'success', 5000);
     render(root);
   };
   const children: (HTMLElement | null)[] = [
-    el('summary', { class: 'output-panel-summary', title: '調整輸出方式、類別與編碼範圍' },
+    el('summary', { class: 'output-panel-summary', title: '調整保留多少、標記方式、類別與編碼範圍' },
       el('span', { class: 'summary-main' },
-        el('strong', {}, '輸出方式'),
-        el('span', { class: 'mode-pill' }, OUTPUT_MODE_LABELS[state.outputMode]),
-        el('span', { class: `mode-pill${restorable() ? '' : ' mode-pill-final'}` }, restorable() ? MARKER_LABELS.code : `${MARKER_LABELS[state.marker]}・無法還原`),
-        el('span', { class: exampleClass('small muted') }, modeExample(state.outputMode, state.marker)),
+        el('strong', {}, '輸出設定'),
+        // Shown while collapsed; the rows below say the same once open.
+        el('span', { class: 'mode-pill summary-detail' }, OUTPUT_MODE_LABELS[state.outputMode]),
+        el('span', { class: `mode-pill summary-detail${restorable() ? '' : ' mode-pill-final'}` }, restorable() ? MARKER_LABELS.code : `${MARKER_LABELS[state.marker]}・無法還原`),
+        el('span', { class: `summary-detail ${exampleClass('small muted')}` }, modeExample(state.outputMode, state.marker)),
         el('span', { class: 'muted small' }, `生效 ${active} 筆${hasMergedTable() ? '・共用／沿用編碼' : ''}`),
       ),
       action,
     ),
-    el('div', { class: 'output-modes' }, ...radios),
-    state.outputMode === 'preview'
-      ? el('p', { class: 'small notice notice-inline' }, '⚠ 部分保留只露出適合統計的字元（姓氏、身分證前 2 碼、手機前 4 碼、區碼、行政區、Email 網域、公司型態），但並非完全匿名；交給外部前請確認，或改選「全部隱藏」。')
-      : null,
-    el('h4', { class: 'output-subhead' }, '標記方式'),
-    el('div', { class: 'output-modes marker-modes' }, ...markerRadios),
-    restorable()
-      ? null
-      : el('p', { class: 'small notice notice-inline marker-notice' }, '⚠ 不需還原：下載只有去識別化文件，沒有編碼表，日後無法還原。「空白佔位」會保留原本的字數（例如姓名是兩字或三字），需要更高的匿名性請選「類別」。'),
-    renderCategoryTable(root),
-    state.outputMode === 'custom'
-      ? el('div', { class: 'form-actions' },
-          button('設為預設', saveDefault, 'btn btn-small'),
-          el('span', { class: 'muted small' }, state.overrides.size ? '把目前各類別的保留方式存為預設，之後選「自訂」會自動套用。' : '目前沿用預設值。'),
-        )
-      : null,
-    restorable() ? el('h4', { class: 'output-subhead' }, '編碼範圍') : null,
-    restorable() ? renderCodeScope(root) : null,
+    el('div', { class: 'output-rows' },
+      el('div', { class: 'output-row', 'data-row': 'keep' },
+        el('span', { class: 'output-row-label' }, '保留'),
+        segmented('output-mode', OUTPUT_MODE_LABELS, state.outputMode, setMode),
+        el('span', { class: `output-row-note ${exampleClass('small muted')}` }, modeExample(state.outputMode, state.marker)),
+      ),
+      el('div', { class: 'output-row', 'data-row': 'marker' },
+        el('span', { class: 'output-row-label' }, '標記'),
+        segmented('marker-style', MARKER_LABELS, state.marker, setMarker),
+        el('span', { class: 'output-row-note small muted' }, el('span', { class: exampleClass('') }, markerExample), `　${markerNote}`),
+      ),
+    ),
+    notices.length ? el('p', { class: 'small notice notice-inline output-notice' }, `⚠ ${notices.join('；')}`) : null,
+    section('by-category', `依類別調整（${present} 類）`, state.outputMode === 'custom' || state.categoriesOpen, (open) => (state.categoriesOpen = open),
+      renderCategoryTable(root),
+      state.outputMode === 'custom'
+        ? el('div', { class: 'form-actions' },
+            button('設為預設', saveDefault, 'btn btn-small'),
+            el('span', { class: 'muted small' }, state.overrides.size ? '把目前各類別的保留方式存為預設，之後選「自訂」會自動套用。' : '目前沿用預設值。'),
+          )
+        : null,
+    ),
+    restorable() ? section('code-advanced', '進階：編碼範圍', state.advancedOpen, (open) => (state.advancedOpen = open), renderCodeScope(root)) : null,
   ];
   box.append(...children.filter((c): c is HTMLElement => c !== null));
   return box;
@@ -717,16 +739,9 @@ function renderCategoryTable(root: HTMLElement): HTMLElement {
 }
 
 function previewHint(doc: LoadedDocument): string {
-  switch (doc.layout?.kind) {
-    case 'docx':
-      return 'Word 以段落、標題、表格與頁首頁尾呈現；';
-    case 'xlsx':
-      return 'Excel 以工作表格線呈現，上方可切換工作表；';
-    case 'pdf':
-      return doc.ocr ? '掃描 PDF 以辨識出的文字依原位置逐頁排版，只保留不含文字的圖片（綠色虛線框，可逐張取消），請對照原檔核對；' : 'PDF 依原始座標逐頁排版；';
-    default:
-      return '';
-  }
+  if (doc.layout?.kind === 'xlsx') return '上方可切換工作表。';
+  if (doc.layout?.kind === 'pdf' && doc.ocr) return '綠框圖片會保留在輸出中（可逐張取消），請對照原檔核對。';
+  return '';
 }
 
 function renderPreview(preview: HTMLElement, refresh: () => void, root: HTMLElement): void {

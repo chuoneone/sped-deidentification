@@ -18,6 +18,12 @@
   --mark-公司: #d7ccc8;
   --mark-統編: #b2ebf2;
   --mark-識別碼: #ffe082;
+  --mark-國際電話: #a5d6a7;
+  --mark-信用卡: #f8bbd0;
+  --mark-SSN: #ef9a9a;
+  --mark-IBAN: #b39ddb;
+  --mark-IP: #b0bec5;
+  --mark-生日: #ffccbc;
   --mark-restored: #d0f0dd;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
   font-size: 15px;
@@ -107,6 +113,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .mark-公司 { background: var(--mark-公司); }
 .mark-統編 { background: var(--mark-統編); }
 .mark-識別碼 { background: var(--mark-識別碼); }
+.mark-國際電話 { background: var(--mark-國際電話); }
+.mark-信用卡 { background: var(--mark-信用卡); }
+.mark-SSN { background: var(--mark-SSN); }
+.mark-IBAN { background: var(--mark-IBAN); }
+.mark-IP { background: var(--mark-IP); }
+.mark-生日 { background: var(--mark-生日); }
 .mark-restored { background: var(--mark-restored); }
 .cancelled { text-decoration: underline dotted var(--danger); text-decoration-thickness: 2px; }
 .flash { outline: 3px solid var(--primary); outline-offset: 2px; transition: outline 0.3s; }
@@ -124,6 +136,12 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .badge-公司 { background: var(--mark-公司); }
 .badge-統編 { background: var(--mark-統編); }
 .badge-識別碼 { background: var(--mark-識別碼); }
+.badge-國際電話 { background: var(--mark-國際電話); }
+.badge-信用卡 { background: var(--mark-信用卡); }
+.badge-SSN { background: var(--mark-SSN); }
+.badge-IBAN { background: var(--mark-IBAN); }
+.badge-IP { background: var(--mark-IP); }
+.badge-生日 { background: var(--mark-生日); }
 .tag {
   display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; line-height: 1.5;
   font-size: 0.72rem; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 0.35rem;
@@ -404,17 +422,30 @@ body:has(.site-info-dialog[open]) { overflow: hidden; }
 .summary-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; min-width: 0; }
 .mode-pill { background: #eef3ff; color: var(--primary); font-weight: 600; font-size: 0.85rem; padding: 0.1rem 0.6rem; border-radius: 999px; }
 .mode-pill-final { background: #fff4e5; color: #9a5b00; }
+.output-panel[open] .summary-detail { display: none; }
 .summary-action { flex-shrink: 0; border-color: var(--primary); color: var(--primary); font-weight: 600; }
 .output-panel:not([open]) { background: #f8faff; border-color: #c9d6f5; }
-.output-modes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }
-.mode-option { display: flex; align-items: flex-start; gap: 0.4rem; border: 1px solid var(--border); border-radius: 8px; padding: 0.45rem 0.7rem; cursor: pointer; }
-.mode-option > span { display: flex; flex-direction: column; gap: 0.1rem; }
-.mode-option:has(input:checked) { border-color: var(--primary); background: #eef3ff; }
-.output-subhead { margin: 0.75rem 0 0.25rem; font-size: 0.9rem; }
+/* 保留／標記: a label, a row of joined buttons, then what the choice gives. */
+.output-rows { display: grid; grid-template-columns: auto auto 1fr; align-items: center; gap: 0.5rem 0.75rem; margin: 0.25rem 0 0.5rem; }
+.output-row { display: contents; }
+.output-row-label { font-weight: 600; font-size: 0.9rem; }
+.output-row-note { min-width: 0; }
+.segmented { display: inline-flex; justify-self: start; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segment { position: relative; cursor: pointer; }
+.segment input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.segment span { display: block; padding: 0.35rem 0.85rem; font-size: 0.9rem; white-space: nowrap; }
+.segment + .segment span { border-left: 1px solid var(--border); }
+.segment input:checked + span { background: var(--primary); color: var(--primary-ink); font-weight: 600; }
+.segment input:focus-visible + span { outline: 2px solid var(--primary); outline-offset: -3px; }
+.output-section { border-top: 1px solid var(--border); padding: 0.35rem 0; }
+.output-section > summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--primary); padding: 0.2rem 0; }
+.output-section[open] > summary { margin-bottom: 0.4rem; }
 .output-panel .table-wrap { margin-bottom: 0.5rem; }
 .retention-control { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
 .status-line { justify-content: flex-start; }
 .status-info { color: var(--primary); cursor: help; }
+.status-line { gap: 0.75rem; flex-wrap: wrap; }
+.status-partial { cursor: help; }
 .menu { position: relative; }
 .menu > summary { list-style: none; cursor: pointer; }
 .menu > summary::-webkit-details-marker { display: none; }
@@ -422,7 +453,9 @@ body:has(.site-info-dialog[open]) { overflow: hidden; }
 .menu-item { border: 0; background: transparent; text-align: left; padding: 0.45rem 0.6rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: var(--text); white-space: nowrap; }
 .menu-item:hover { background: var(--bg); }
 @media (max-width: 700px) {
-  .mode-option { flex: 1 1 100%; }
+  .output-rows { grid-template-columns: auto 1fr; }
+  .output-row-note { grid-column: 2; }
+  .segment span { padding: 0.35rem 0.6rem; }
   .output-panel-summary { margin: -0.5rem; padding: 0.5rem; }
   .menu { flex: 1 1 auto; }
   .menu > summary { display: block; text-align: center; }
@@ -484,3 +517,38 @@ body:has(.site-info-dialog[open]) { overflow: hidden; }
 }
 .pdf-picture-toggle:hover { border-color: #2e9e5b; }
 .is-dropped .pdf-picture-toggle { color: var(--muted); border-color: var(--border); }
+
+/* Rules page (ui/patterns-view.ts): groups of one-line rules; the RegExp and defaults fold out per rule. */
+.rules-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+.rule-group { border: 1px solid var(--border); border-radius: 10px; background: var(--surface); margin: 0.75rem 0; }
+.rule-group-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 0.9rem; cursor: pointer; font-weight: 600; }
+.rule-group[open] > .rule-group-head { border-bottom: 1px solid var(--border); }
+.group-toggle-label { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 400; cursor: pointer; }
+.rule-list { display: grid; grid-template-columns: auto minmax(8rem, max-content) auto minmax(0, 1fr) auto; }
+.rule-row { display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; border-bottom: 1px solid var(--border); }
+.rule-row > :is(.switch, .rule-name, .rule-example) { padding: 0.45rem 0.6rem; }
+.rule-row > .switch { padding-left: 0.9rem; }
+.rule-row > .badge { justify-self: start; }
+.rule-row.row-disabled > :not(.switch) { opacity: 0.5; }
+.rule-name { font-weight: 600; }
+.rule-example { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rule-more { justify-self: end; margin-right: 0.5rem; }
+.rule-detail { grid-column: 1 / -1; display: grid; grid-template-columns: max-content 1fr; gap: 0.35rem 0.9rem; margin: 0; padding: 0.6rem 0.9rem 0.8rem 3rem; background: var(--bg); border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.rule-detail > dt { color: var(--muted); }
+.rule-detail > dd { margin: 0; min-width: 0; }
+.rule-detail code.regex { white-space: pre-wrap; word-break: break-all; }
+.rule-actions { grid-column: 2; display: flex; gap: 0.5rem; }
+.rule-empty { padding: 0.6rem 0.9rem; margin: 0; }
+@media (max-width: 700px) {
+  /* Each rule its own small grid: toggle, name and 查看規則 on top, the example below. */
+  .rule-list { display: block; }
+  .rule-row { grid-template-columns: auto 1fr auto; grid-template-areas: 'toggle name more' 'toggle example example'; }
+  .rule-row > :is(.switch, .rule-name, .rule-example) { padding: 0.25rem 0.5rem; }
+  .rule-row > .switch { grid-area: toggle; padding-left: 0.9rem; }
+  .rule-row > .rule-name { grid-area: name; }
+  .rule-row > .badge { display: none; }
+  .rule-row > .rule-example { grid-area: example; }
+  .rule-row > .rule-more { grid-area: more; }
+  .rule-detail { padding-left: 0.9rem; grid-template-columns: 1fr; }
+  .rule-actions { grid-column: 1; }
+}

@@ -171,7 +171,9 @@ function score(truth: AnswerPage, got: Read, page: number) {
   // A value read with a character or two wrong (徐語妤 → 徐語即) is still masked where it stands.
   const close = (f: string, m: string) => {
     const [[fc, fv], [mc, mv]] = [f.split('|'), m.split('|')];
-    return fc === mc && editDistance(fv, mv) <= Math.max(1, Math.round(mv.length * 0.2));
+    // Spacing is not a misreading (OCR reads 80 年5月1日 for 80 年 5 月 1 日).
+    const [a, b] = [fv.replace(/\s/g, ''), mv.replace(/\s/g, '')];
+    return fc === mc && editDistance(a, b) <= Math.max(1, Math.round(b.length * 0.2));
   };
   const misread = extra.filter((f) => missedValues.some((m) => close(f, m)));
   const falsePositives = extra.filter((f) => !misread.includes(f));

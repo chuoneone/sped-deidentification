@@ -164,7 +164,7 @@ function form(f: Fake): ScanPage {
     planted: [],
     handwritten: [
       ['姓名', a.name], ['身分證', a.id], ['市話', phone], ['手機', a.mobile], ['電子郵件', a.email], ['地址', a.address],
-      ['姓名', ec.name], ['手機', ec.mobile], ['公司', employer], ['統編', employerTax],
+      ['姓名', ec.name], ['手機', ec.mobile], ['公司', employer], ['統編', employerTax], ['生日', roc(a.birthday)],
     ],
     images: 0,
     manual: [],

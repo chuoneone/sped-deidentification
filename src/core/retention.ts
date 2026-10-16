@@ -1,6 +1,7 @@
 import type { Category, Retention } from './types';
 import { CITIES } from './patterns';
 import { COMPANY_MASK_RE, COMPOUND_SURNAMES } from './mask';
+import { birthYearSplit, phonePrefixLength } from './intl';
 
 export type RetentionMode = Retention['mode'];
 
@@ -61,7 +62,9 @@ function afterDigit(value: string, n: number): number {
 /**
  * The standard 部分保留: only the part of each value that is useful for statistics and weak for
  * re-identification (surname, ID region + sex, mobile carrier prefix, area code, district, email
- * domain, organisation type, first character of an identifier). 統編 stays fully hidden.
+ * domain, organisation type, first character of an identifier; for international formats the country
+ * code, a card's last four digits, an IBAN's country, an address's network, a birth year). 統編 and SSN
+ * stay fully hidden.
  */
 export function standardSplit(category: Category, value: string): Split {
   switch (category) {
@@ -86,7 +89,21 @@ export function standardSplit(category: Category, value: string): Split {
       return m ? { head: 0, tail: m[3].length } : NONE;
     }
     case '統編':
+    case 'SSN':
       return NONE;
+    case '國際電話':
+      return { head: phonePrefixLength(value), tail: 0 };
+    case '信用卡': {
+      let start = value.length;
+      for (let digits = 0; start > 0 && digits < 4; ) if (/\d/.test(value[--start])) digits++;
+      return { head: 0, tail: value.length - start };
+    }
+    case 'IBAN':
+      return { head: 2, tail: 0 };
+    case 'IP':
+      return { head: value.match(/^(?:\d{1,3}\.){2}|^(?:[0-9a-f]{0,4}:){2}/i)?.[0].length ?? 0, tail: 0 };
+    case '生日':
+      return birthYearSplit(value);
     default:
       return { head: 1, tail: 0 };
   }

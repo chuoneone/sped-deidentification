@@ -1,0 +1,33 @@
+Subject: Account onboarding – Order #A-20261016-0042
+
+Hi team,
+
+Please set up the new customer account below. All details were confirmed by phone on Oct 14 at 14:30:00.
+
+Customer: Emily Carter
+Date of Birth: March 14, 1985
+SSN: 219-09-9999
+Email: emily.carter@example.com
+Mobile: +1 (415) 867-5309
+Home: (416) 967-1111
+Office (London): +44 20 7946 0958
+Tokyo branch: +81 3-1234-5678
+
+Billing
+- Card on file: 4242 4242 4242 4242 (Visa), backup 3782 822463 10005 (Amex)
+- Refund to: GB82 WEST 1234 5698 7654 32
+- EU supplier account: DE89370400440532013000
+- Amount due: $1,234.56 by Invoice Date 2026-10-16; tracking 1Z999AA10123456784
+- Rejected card (typo): 4242 4242 4242 4241
+
+Second contact: Daniel Kim, DOB 07/04/1990, phone 415-555-0123 (a fictional number, masked anyway), Taiwan mobile 0912-345-678.
+
+Access log
+- Login from 192.168.1.10 and 2001:db8::1 at 09:15:22
+- Router MAC 00:1A:2B:3C:4D:5E, firmware 2.4.1, build 1.2.3.4.5
+- Old record SSN 000-12-3456 was invalid and has been removed.
+
+Ship to ZIP 94105. Reference no. 4000 1234 5678 9010 is an internal ticket, not a card.
+
+Thanks,
+Support Desk
