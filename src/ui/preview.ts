@@ -1,4 +1,4 @@
-import type { DocxParagraphLayout, LoadedDocument, PdfPicture } from '../core/types';
+import type { DocLayout, DocxParagraphLayout, LoadedDocument, PdfPicture, Rgb } from '../core/types';
 import { clear, el } from './components';
 
 /** A highlighted span of the full text: an active redaction, a cancelled one, or a restored value. */
@@ -189,7 +189,49 @@ function renderXlsx(container: HTMLElement, doc: LoadedDocument, decos: Decorati
 // ---------------------------------------------------------------------------------------
 // PDF: each page as a box with text items at their original positions, scaled to fit.
 // ---------------------------------------------------------------------------------------
-function renderPdf(container: HTMLElement, doc: LoadedDocument, decos: Decoration[], pages: { width: number; height: number; items: { start: number; end: number; x: number; y: number; fontSize: number; width: number }[]; pictures?: PdfPicture[] }[], onToggle?: (p: PdfPicture) => void): void {
+type PdfLayoutPage = Extract<DocLayout, { kind: 'pdf' }>['pages'][number];
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+function svg(tag: string, attrs: Record<string, string | number>): SVGElement {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, String(v));
+  return node;
+}
+const css = ([r, g, b]: Rgb) => `rgb(${r},${g},${b})`;
+const pts = (...vs: number[]) => vs.map((v) => Math.round(v * 10) / 10).join(',');
+
+/**
+ * A scanned page's fills, rules and checkboxes, drawn in PDF points under the text as in the output.
+ * The data-* attributes carry the same shapes in points for `npm run eval:ocr`.
+ */
+function structureLayer(pg: PdfLayoutPage): SVGElement | null {
+  if (!pg.fills?.length && !pg.rules?.length && !pg.checkboxes?.length) return null;
+  const layer = svg('svg', { class: 'pdf-structure', viewBox: `0 0 ${pg.width} ${pg.height}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' });
+  const flip = (y: number) => pg.height - y;
+  for (const f of pg.fills ?? []) {
+    layer.append(svg('rect', { x: f.x, y: flip(f.y + f.height), width: f.width, height: f.height, fill: css(f.color), 'data-fill': pts(f.x, f.y, f.width, f.height, ...f.color) }));
+  }
+  for (const r of pg.rules ?? []) {
+    layer.append(svg('line', {
+      x1: r.x1, y1: flip(r.y1), x2: r.x2, y2: flip(r.y2), stroke: css(r.color), 'stroke-width': r.width,
+      ...(r.dashed && { 'stroke-dasharray': `${r.width * 3} ${r.width * 2}` }),
+      'data-rule': pts(r.x1, r.y1, r.x2, r.y2),
+    }));
+  }
+  for (const b of pg.checkboxes ?? []) {
+    const line = Math.max(0.5, b.size * 0.09);
+    const g = svg('g', { stroke: css(b.color), fill: 'none', 'stroke-width': line, 'data-checkbox': pts(b.x, b.y, b.size, b.checked ? 1 : 0) });
+    g.append(svg('rect', { x: b.x, y: flip(b.y + b.size), width: b.size, height: b.size }));
+    if (b.checked) {
+      const p = (u: number, v: number) => `${b.x + b.size * u},${flip(b.y + b.size * v)}`;
+      g.append(svg('polyline', { points: `${p(0.2, 0.5)} ${p(0.42, 0.25)} ${p(0.82, 0.8)}`, 'stroke-width': line * 1.4 }));
+    }
+    layer.append(g);
+  }
+  return layer;
+}
+
+function renderPdf(container: HTMLElement, doc: LoadedDocument, decos: Decoration[], pages: PdfLayoutPage[], onToggle?: (p: PdfPicture) => void): void {
   const host = el('div', { class: 'pdf-pages' });
   pages.forEach((pg, i) => {
     const page = el('div', { class: 'pdf-page' });
@@ -198,6 +240,8 @@ function renderPdf(container: HTMLElement, doc: LoadedDocument, decos: Decoratio
     // Height from the aspect ratio rather than from --s, so the page is already full-size when fit()
     // first measures; an empty-looking scroll container would snap its (and the window's) scroll to 0.
     page.style.aspectRatio = `${pg.width} / ${pg.height}`;
+    const structure = structureLayer(pg);
+    if (structure) page.append(structure);
     for (const pic of pg.pictures ?? []) {
       const tip = pic.keep ? '不含文字的圖片，會以原影像保留在輸出中；點擊可取消保留' : '已取消保留，輸出不含這張圖片；點擊可改回保留';
       const fig = el('figure', { class: `pdf-picture${pic.keep ? '' : ' is-dropped'}` },
@@ -217,6 +261,7 @@ function renderPdf(container: HTMLElement, doc: LoadedDocument, decos: Decoratio
       span.style.left = `calc(var(--s) * ${it.x}px)`;
       span.style.top = `calc(var(--s) * ${pg.height - it.y - it.fontSize * 0.8}px)`;
       span.style.fontSize = `calc(var(--s) * ${it.fontSize}px)`;
+      if (it.color) span.style.color = css(it.color);
       renderRange(span, doc.text, it.start, it.end, decos);
       page.append(span);
     }

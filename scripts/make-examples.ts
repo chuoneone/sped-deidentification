@@ -35,20 +35,28 @@ const contractDoc = contract();
 const quotationDoc = quotation();
 const contractDocx = await renderDocx(contractDoc);
 // 圖片型（掃描）PDF：5 頁模擬掃描影像，無文字層（需本機 Chrome）；同時輸出對答案用的原稿（npm run eval:ocr）
+const ANSWER_NOTE =
+  '掃描樣本的原稿：與頁面影像同一份 HTML 產生，座標為 PDF 點（原點左下、轉正後的頁面）。text 為各頁實際文字；planted／handwritten 為應被偵測的印刷／手寫敏感值；manual 為內建規則範圍外、需手動新增的值；pictures 為不含文字、應保留的圖片；rules／fills／checkboxes 為表格線條、底色與勾選框。';
 const scanned = scanPages();
 const { pdf: scannedPdf, truth: scannedTruth } = await renderScanPdf(scanned);
-write(
-  'tests/fixtures/scanned-sample.answer.json',
-  JSON.stringify(
-    {
-      source: 'public/samples/scanned.pdf',
-      note: '掃描範例的原稿：與頁面影像同一份 HTML 產生。text 為各頁實際文字；planted／handwritten 為應被偵測的印刷／手寫敏感值；manual 為內建規則範圍外、需手動新增的值；pictures 為不含文字、應保留的圖片（PDF 座標）。',
-      pages: scanned.map((p, i) => ({ title: p.title, planted: p.planted, handwritten: p.handwritten, manual: p.manual, ...scannedTruth[i] })),
-    },
-    null,
-    2,
-  ) + '\n',
-);
+const answerKey = (source: string, pages: typeof scanned, truth: typeof scannedTruth) =>
+  JSON.stringify({ source, note: ANSWER_NOTE, pages: pages.map((p, i) => ({ title: p.title, planted: p.planted, handwritten: p.handwritten, manual: p.manual, ...truth[i] })) }, null, 2) + '\n';
+write('tests/fixtures/scanned-sample.answer.json', answerKey('public/samples/scanned.pdf', scanned, scannedTruth));
+// 評分用的角度樣本（不放上網站）：信函與表單傾斜 3°／6°，信函轉向 90°／180°
+{
+  const [letterPage, formPage] = scanned;
+  const angled: typeof scanned = [
+    { ...letterPage, tilt: 3 },
+    { ...letterPage, tilt: 6 },
+    { ...formPage, tilt: 3 },
+    { ...formPage, tilt: 6 },
+    { ...letterPage, rotate: 90 },
+    { ...letterPage, rotate: 180 },
+  ];
+  const { pdf, truth } = await renderScanPdf(angled);
+  write('tests/fixtures/scan-angles.pdf', pdf);
+  write('tests/fixtures/scan-angles.answer.json', answerKey('tests/fixtures/scan-angles.pdf', angled, truth));
+}
 {
   const d = dir('01-核心流程');
   write(join(d, '委外服務契約書.docx'), contractDocx);

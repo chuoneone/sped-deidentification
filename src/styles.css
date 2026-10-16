@@ -470,6 +470,8 @@ body:has(.site-info-dialog[open]) { overflow: hidden; }
   .ocr-bar.is-indeterminate .ocr-bar-fill { animation: none; left: 0; width: 100%; opacity: 0.4; }
 }
 .badge-ocr { background: #e8f0fe; color: var(--primary); }
+/* Rules, fills and checkboxes redrawn from a scanned page, under its text. */
+.pdf-structure { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 /* Text-free pictures kept from a scanned page (preview of the PDF output). */
 .pdf-picture { position: absolute; margin: 0; outline: 2px dashed #2e9e5b; outline-offset: 1px; }
 .pdf-picture img { display: block; width: 100%; height: 100%; }

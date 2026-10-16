@@ -2,9 +2,9 @@ import * as pdfjs from 'pdfjs-dist';
 import type { PDFPageProxy } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
-import { PDFDocument, PDFFont } from 'pdf-lib';
+import { PDFDocument, PDFFont, PDFPage, rgb } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import type { LoadedDocument, PdfItemLayout, PdfPicture, TextEdit } from '../core/types';
+import type { LoadedDocument, PdfCheckbox, PdfItemLayout, PdfScanLayout, Rgb, TextEdit } from '../core/types';
 import { distributeEdits, type Segment } from './segments';
 import { sparseSubsetTtf } from './ttf-subset';
 import type { OcrOptions } from './ocr';
@@ -22,14 +22,15 @@ export interface PdfTextItem {
   width: number;
   /** A line break follows (pdf.js hasEOL); only used while assembling the text. */
   eol?: boolean;
+  /** Scanned pages: the colour the text was printed or written in. */
+  color?: Rgb;
 }
 
-export interface PdfPage {
+/** Scanned pages also carry their redrawn structure: pictures, rules, fills and checkboxes. */
+export interface PdfPage extends PdfScanLayout {
   width: number;
   height: number;
   items: PdfTextItem[];
-  /** Scanned pages only: text-free pictures to keep in the output. */
-  pictures?: PdfPicture[];
 }
 
 export interface PdfHandle {
@@ -113,7 +114,7 @@ export function assemblePdf(fileName: string, rawPages: PdfPage[], ocr = false):
         segments.push({ start: text.length, end: text.length + it.text.length, text: it.text });
         itemPage.push(p);
         itemIndex.push(items.length);
-        items.push({ text: it.text, x, y, fontSize: size, width: it.width });
+        items.push({ text: it.text, x, y, fontSize: size, width: it.width, ...(it.color && { color: it.color }) });
         text += it.text;
         lastEndX = x + it.width;
         lastY = y;
@@ -123,16 +124,16 @@ export function assemblePdf(fileName: string, rawPages: PdfPage[], ocr = false):
         lastY = Number.NaN;
       }
     }
-    pages.push({ width: raw.width, height: raw.height, items, pictures: raw.pictures });
+    pages.push({ width: raw.width, height: raw.height, items, pictures: raw.pictures, rules: raw.rules, fills: raw.fills, checkboxes: raw.checkboxes });
     if (!text.endsWith('\n')) text += '\n';
     text += '\n';
   });
 
   const handle: PdfHandle = { pages, segments, itemPage, itemIndex };
-  const layoutPages = pages.map((pg) => ({ width: pg.width, height: pg.height, items: [] as PdfItemLayout[], pictures: pg.pictures }));
+  const layoutPages = pages.map((pg) => ({ width: pg.width, height: pg.height, items: [] as PdfItemLayout[], pictures: pg.pictures, rules: pg.rules, fills: pg.fills, checkboxes: pg.checkboxes }));
   segments.forEach((seg, i) => {
     const it = pages[itemPage[i]].items[itemIndex[i]];
-    layoutPages[itemPage[i]].items.push({ start: seg.start, end: seg.end, x: it.x, y: it.y, fontSize: it.fontSize, width: it.width });
+    layoutPages[itemPage[i]].items.push({ start: seg.start, end: seg.end, x: it.x, y: it.y, fontSize: it.fontSize, width: it.width, ...(it.color && { color: it.color }) });
   });
   const doc: LoadedDocument = { fileName, format: 'pdf', text, handle, layout: { kind: 'pdf', pages: layoutPages } };
   if (ocr) doc.ocr = true;
@@ -166,6 +167,18 @@ function fitSize(font: PDFFont, text: string, size: number, maxWidth: number): n
   return Math.max(4, (size * maxWidth) / w);
 }
 
+const colour = ([r, g, b]: Rgb) => rgb(r / 255, g / 255, b / 255);
+
+/** A checkbox redrawn as a square, with a tick when it was checked (the font has no ☐/☑ glyphs). */
+function drawCheckbox(page: PDFPage, b: PdfCheckbox): void {
+  const line = Math.max(0.5, b.size * 0.09);
+  page.drawRectangle({ x: b.x, y: b.y, width: b.size, height: b.size, borderColor: colour(b.color), borderWidth: line });
+  if (!b.checked) return;
+  const p = (u: number, v: number) => ({ x: b.x + b.size * u, y: b.y + b.size * v });
+  page.drawLine({ start: p(0.2, 0.5), end: p(0.42, 0.25), thickness: line * 1.4, color: colour(b.color) });
+  page.drawLine({ start: p(0.42, 0.25), end: p(0.82, 0.8), thickness: line * 1.4, color: colour(b.color) });
+}
+
 /**
  * OCR runs: the width up to the next run on the same line (or the right margin), so a table cell's
  * text never runs into the next cell; recognised font sizes are only estimates.
@@ -174,6 +187,15 @@ function roomOnLine(pg: PdfPage, it: PdfTextItem): number {
   let room = Math.max(it.width, pg.width - it.x - 36);
   for (const o of pg.items) {
     if (o.x > it.x && Math.abs(o.y - it.y) < Math.min(o.fontSize, it.fontSize) * 0.5) room = Math.min(room, o.x - it.x - 2);
+  }
+  // A checkbox or a table's vertical rule further along the line ends it too.
+  const [low, high] = [it.y, it.y + it.fontSize * 0.7];
+  const stop = (x: number) => {
+    if (x > it.x + it.fontSize * 0.5) room = Math.min(room, x - it.x - 2);
+  };
+  for (const b of pg.checkboxes ?? []) if (b.y < high && b.y + b.size > low) stop(b.x);
+  for (const r of pg.rules ?? []) {
+    if (Math.abs(r.x2 - r.x1) < Math.abs(r.y2 - r.y1) && Math.min(r.y1, r.y2) < high && Math.max(r.y1, r.y2) > low) stop(Math.min(r.x1, r.x2) - r.width / 2);
   }
   return room / 1.02; // fitSize tolerates 2% overflow
 }
@@ -206,8 +228,14 @@ export async function generatePdf(doc: LoadedDocument, edits: TextEdit[]): Promi
 
   handle.pages.forEach((pg, pIdx) => {
     const page = out.addPage([pg.width, pg.height]);
+    // Scanned pages: fills under everything, then the kept pictures, then rules and checkboxes; text on top.
+    for (const f of pg.fills ?? []) page.drawRectangle({ x: f.x, y: f.y, width: f.width, height: f.height, color: colour(f.color) });
     // Only the cut-out pictures are copied; the rest of the scanned page never is.
     for (const { pic, image } of embedded[pIdx]) page.drawImage(image, { x: pic.x, y: pic.y, width: pic.width, height: pic.height });
+    for (const r of pg.rules ?? []) {
+      page.drawLine({ start: { x: r.x1, y: r.y1 }, end: { x: r.x2, y: r.y2 }, thickness: r.width, color: colour(r.color), ...(r.dashed && { dashArray: [r.width * 3, r.width * 2] }) });
+    }
+    for (const b of pg.checkboxes ?? []) drawCheckbox(page, b);
     const pageChanges = newTexts.get(pIdx);
     pg.items.forEach((it, iIdx) => {
       const changed = pageChanges?.has(iIdx) ?? false;
@@ -217,7 +245,7 @@ export async function generatePdf(doc: LoadedDocument, edits: TextEdit[]): Promi
       // margin before shrinking, so whole-line items keep their size.
       const room = Math.max(it.width, pg.width - it.x - 36);
       const size = doc.ocr ? fitSize(font, text, it.fontSize, roomOnLine(pg, it)) : changed ? fitSize(font, text, it.fontSize, room) : it.fontSize;
-      page.drawText(text, { x: it.x, y: it.y, size, font });
+      page.drawText(text, { x: it.x, y: it.y, size, font, ...(it.color && { color: colour(it.color) }) });
     });
   });
 

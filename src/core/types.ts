@@ -80,6 +80,8 @@ export interface PdfItemLayout {
   y: number;
   fontSize: number;
   width: number;
+  /** Scanned pages: the text's colour as recognised. */
+  color?: Rgb;
 }
 /**
  * A text-free picture cut from a scanned page and kept in the output (PDF points, origin bottom-left).
@@ -93,10 +95,47 @@ export interface PdfPicture {
   jpeg: Uint8Array;
   keep: boolean;
 }
+/** 0–255 per channel. */
+export type Rgb = [number, number, number];
+/**
+ * Layout redrawn from a scanned page as plain vector shapes (never pixels, so they cannot carry text).
+ * PDF points, origin bottom-left, on the straightened page.
+ */
+export interface PdfRule {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  width: number;
+  color: Rgb;
+  dashed?: boolean;
+}
+export interface PdfFill {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: Rgb;
+}
+export interface PdfCheckbox {
+  /** Bottom-left corner. */
+  x: number;
+  y: number;
+  size: number;
+  checked: boolean;
+  color: Rgb;
+}
+/** Structure of a scanned page (all optional; text-layer PDFs have none). */
+export interface PdfScanLayout {
+  pictures?: PdfPicture[];
+  rules?: PdfRule[];
+  fills?: PdfFill[];
+  checkboxes?: PdfCheckbox[];
+}
 export type DocLayout =
   | { kind: 'docx'; paragraphs: DocxParagraphLayout[] }
   | { kind: 'xlsx'; sheets: { name: string; cells: XlsxCellLayout[] }[] }
-  | { kind: 'pdf'; pages: { width: number; height: number; items: PdfItemLayout[]; pictures?: PdfPicture[] }[] };
+  | { kind: 'pdf'; pages: ({ width: number; height: number; items: PdfItemLayout[] } & PdfScanLayout)[] };
 
 export interface LoadedDocument {
   fileName: string;

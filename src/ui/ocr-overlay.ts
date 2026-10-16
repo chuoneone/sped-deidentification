@@ -48,7 +48,13 @@ export function ocrOverlay(fileName: string, onCancel: () => void): OcrOverlay {
       const engine = p.stage === 'engine';
       const pct = Math.round(p.progress * 100);
       count.textContent = engine ? '準備中' : `第 ${p.page} / ${p.pages} 頁・${pct}%`;
-      stage.textContent = engine ? '準備辨識引擎（首次需下載模型）…' : `辨識第 ${p.page} 頁文字…`;
+      stage.textContent = engine
+        ? '準備辨識引擎（首次需下載模型）…'
+        : p.step === 'orient'
+          ? `判斷第 ${p.page} 頁方向並轉正…`
+          : p.step === 'layout'
+            ? `分析第 ${p.page} 頁的表格、勾選框與圖片…`
+            : `辨識第 ${p.page} 頁文字…`;
       bar.classList.toggle('is-indeterminate', engine);
       bar.setAttribute('aria-valuenow', String(pct));
       fill.style.width = engine ? '' : `${pct}%`;

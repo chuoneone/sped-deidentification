@@ -42,6 +42,13 @@ describe('ocrLinesToItems', () => {
     expect(items[1].width).toBe(62);
   });
 
+  it('starts a new run at a checkbox or a table rule between words, however close', () => {
+    const box = { x0: 24, y0: 82, x1: 42, y1: 100 }; // ☑男 ☐女: the box between 男 and 女
+    const rule = { x0: 69, y0: 60, x1: 71, y1: 140 };
+    const items = ocrLinesToItems([line([['男', 0, 18], ['女', 46, 64], ['電', 74, 92], ['話', 94, 112]])], 1, 1000, { walls: [box, rule] });
+    expect(items.map((it) => it.text)).toEqual(['男', '女', '電話']);
+  });
+
   it('drops table borders read as characters', () => {
     const l = line([['姓', 0, 18], ['名', 22, 40], ['|', 60, 64, 87], ['“|「', 70, 90, 54], ['=', 95, 105, 70], ['王', 120, 138], ['小', 142, 160]]);
     expect(texts([l])).toEqual(['姓名', '王小']);

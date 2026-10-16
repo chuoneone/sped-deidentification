@@ -13,7 +13,7 @@ import { detect } from '../../src/core/detector';
 import { BUILTIN_PATTERNS } from '../../src/core/patterns';
 import { applyRedactions } from '../../src/core/redactor';
 import { restore } from '../../src/core/restorer';
-import type { LoadedDocument } from '../../src/core/types';
+import type { LoadedDocument, Rgb } from '../../src/core/types';
 import { ocrLinesToItems } from '../../src/formats/ocr';
 import { assemblePdf, generatePdf, parsePdf, type PdfHandle, type PdfPage } from '../../src/formats/pdf';
 
@@ -116,6 +116,47 @@ describe('scanned PDF (OCR) round trip', () => {
     const restored = restore(out.text, mapping);
     expect(restored.missingCodes).toEqual([]);
     expect(restored.restoredText.replace(/\s/g, '')).toBe(scanned.text.replace(/\s/g, ''));
+  });
+
+  it('redraws rules, fills, checkboxes and text colour as shapes, never as an image, and restores the text (005 FR-004, SC-006)', async () => {
+    const blue: Rgb = [29, 63, 154];
+    const grey: Rgb = [68, 68, 68];
+    const page: PdfPage = {
+      width: 595,
+      height: 842,
+      items: [
+        { text: '姓名 王小明', x: 60, y: 700, fontSize: 12, width: 70, color: blue },
+        { text: '手機 0912-345-678', x: 60, y: 670, fontSize: 12, width: 110 },
+        { text: '同意', x: 76, y: 640, fontSize: 12, width: 24 },
+      ],
+      rules: [
+        { x1: 50, y1: 690, x2: 545, y2: 690, width: 1, color: grey },
+        { x1: 50, y1: 600, x2: 545, y2: 600, width: 1, color: grey, dashed: true },
+      ],
+      fills: [{ x: 50, y: 690, width: 495, height: 24, color: [228, 228, 228] }],
+      checkboxes: [
+        { x: 60, y: 639, size: 11, checked: true, color: [34, 34, 34] },
+        { x: 120, y: 639, size: 11, checked: false, color: [34, 34, 34] },
+      ],
+    };
+    const doc = assemblePdf('scan.pdf', [page], true);
+    const items = detect(doc.text, BUILTIN_PATTERNS);
+    expect(items.length).toBeGreaterThan(0);
+    const { edits, mapping } = applyRedactions(doc.text, items);
+    const bytes = new Uint8Array(await (await generatePdf(doc, edits)).arrayBuffer());
+    expect(Buffer.from(bytes).toString('latin1')).not.toContain('/Image');
+
+    const ops = await (await (await pdfjs.getDocument({ data: bytes.slice() }).promise).getPage(1)).getOperatorList();
+    const count = (op: number) => ops.fnArray.filter((f) => f === op).length;
+    expect(count(pdfjs.OPS.fill) + count(pdfjs.OPS.fillStroke)).toBeGreaterThanOrEqual(1); // the fill
+    expect(count(pdfjs.OPS.stroke)).toBeGreaterThanOrEqual(2 + 2 + 2); // rules, checkbox frames, the tick
+    expect(count(pdfjs.OPS.setDash)).toBeGreaterThanOrEqual(1);
+    const fills = ops.fnArray.flatMap((f, i) => (f === pdfjs.OPS.setFillRGBColor ? [Array.from(ops.argsArray[i] as ArrayLike<number>).join()] : []));
+    expect(fills).toContain(blue.join());
+
+    const out = await parsePdf(new File([bytes as BlobPart], 'scan.deid.pdf'));
+    for (const it of items) expect(out.text).not.toContain(it.original);
+    expect(restore(out.text, mapping).restoredText.replace(/\s/g, '')).toBe(doc.text.replace(/\s/g, ''));
   });
 
   it('keeps the text-free pictures the user kept, and only those (FR-022, FR-023)', async () => {

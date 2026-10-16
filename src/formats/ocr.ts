@@ -1,13 +1,16 @@
 import type { PDFDocumentProxy, PDFPageProxy } from 'pdfjs-dist';
 import type Tesseract from 'tesseract.js';
-import type { PdfPicture } from '../core/types';
+import type { PdfCheckbox, PdfFill, PdfPicture, PdfRule, Rgb } from '../core/types';
 import { isValidTaxId, isValidTwId } from '../core/twid';
 import type { PdfPage, PdfTextItem } from './pdf';
+import { eraseRules, estimateSkew, findCheckboxes, findFills, findRules, lineOrientation, paperTone, textColour } from './layout-scan';
 
 /** What the recognition screen shows (see specs/004-scanned-pdf-ocr/contracts/ocr-progress-ui.md). */
 export interface OcrProgress {
   /** 'engine': downloading and starting the recogniser; 'recognize': reading page `page`. */
   stage: 'engine' | 'recognize';
+  /** Within a page: straightening it, reading its text, or analysing its layout. */
+  step?: 'orient' | 'read' | 'layout';
   page: number;
   pages: number;
   /** Overall progress, 0–1. */
@@ -99,7 +102,12 @@ export function fixConfusables(text: string): string {
  * origin bottom-left, y = baseline). Each line is cut where words are far apart, so table cells and
  * form fields keep their own position; CJK characters inside a run are joined without spaces.
  */
-export function ocrLinesToItems(lines: OcrLine[], scale: number, pageHeight: number): PdfTextItem[] {
+export function ocrLinesToItems(
+  lines: OcrLine[],
+  scale: number,
+  pageHeight: number,
+  { colourOf, walls = [] }: { colourOf?: (box: Box) => Rgb | undefined; walls?: Box[] } = {},
+): PdfTextItem[] {
   const items: PdfTextItem[] = [];
   for (const line of lines) {
     const h = line.rowAttributes?.rowHeight || line.bbox.y1 - line.bbox.y0;
@@ -133,7 +141,9 @@ export function ocrLinesToItems(lines: OcrLine[], scale: number, pageHeight: num
       const tallest = Math.max(...run.map((w) => w.bbox.y1 - w.bbox.y0));
       // …nor below its own glyphs: such a line's baseline belongs to the larger neighbour.
       const bottom = Math.max(...run.map((w) => w.bbox.y1));
+      const color = colourOf?.({ x0: first.x0, y0: Math.min(...run.map((w) => w.bbox.y0)), x1: run.at(-1)!.bbox.x1, y1: bottom });
       items.push({
+        ...(color && { color }),
         text: fixConfusables(text),
         x: first.x0 / scale,
         y: pageHeight - Math.min(baselineAt(first.x0), bottom) / scale,
@@ -142,9 +152,11 @@ export function ocrLinesToItems(lines: OcrLine[], scale: number, pageHeight: num
       });
       run = [];
     };
+    // A checkbox or a table's vertical rule between two words also ends the run.
+    const walled = (a: Box, b: Box) => walls.some((v) => v.x0 >= a.x1 - h * 0.2 && v.x1 <= b.x0 + h * 0.2 && v.y0 < Math.max(a.y1, b.y1) && v.y1 > Math.min(a.y0, b.y0));
     for (const w of words) {
       const prev = run.at(-1);
-      if (prev && w.bbox.x0 - prev.bbox.x1 > SPLIT_GAP * h) flush();
+      if (prev && (w.bbox.x0 - prev.bbox.x1 > SPLIT_GAP * h || walled(prev.bbox, w.bbox))) flush();
       run.push(w);
     }
     flush();
@@ -414,17 +426,20 @@ export function uncoveredText(img: Raster, words: Box[], skip: Box[]): Box[] {
 // ---------------------------------------------------------------------------------------
 // Browser side: render, recognise, second opinions, pictures.
 // ---------------------------------------------------------------------------------------
-async function renderPage(page: PDFPageProxy): Promise<{ canvas: HTMLCanvasElement; scale: number; width: number; height: number }> {
+/** Renders the page turned `deg` clockwise about its centre: a straightened scan is resampled only once. */
+async function renderPage(page: PDFPageProxy, deg = 0): Promise<{ canvas: HTMLCanvasElement; scale: number; width: number; height: number }> {
   const base = page.getViewport({ scale: 1 });
   const scale = Math.min(RENDER_SCALE, MAX_SIDE / Math.max(base.width, base.height));
   const viewport = page.getViewport({ scale });
+  const [w, h] = [Math.ceil(viewport.width), Math.ceil(viewport.height)];
   const canvas = document.createElement('canvas');
-  canvas.width = Math.ceil(viewport.width);
-  canvas.height = Math.ceil(viewport.height);
+  [canvas.width, canvas.height] = Math.abs(Math.round(deg / 90)) % 2 === 1 ? [h, w] : [w, h];
   const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
-  await page.render({ canvasContext: ctx, viewport }).promise;
+  const [cos, sin] = [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)];
+  const transform = [cos, sin, -sin, cos, canvas.width / 2 - (cos * w - sin * h) / 2, canvas.height / 2 - (sin * w + cos * h) / 2];
+  await page.render({ canvasContext: ctx, viewport, ...(deg !== 0 && { transform }) }).promise;
   return { canvas, scale, width: base.width, height: base.height };
 }
 
@@ -450,6 +465,43 @@ function crop(src: HTMLCanvasElement, b: Box, zoom = 1): HTMLCanvasElement {
 const pad = (b: Box, by: number, w: number, h: number): Box => ({ x0: Math.max(0, b.x0 - by), y0: Math.max(0, b.y0 - by), x1: Math.min(w, b.x1 + by), y1: Math.min(h, b.y1 + by) });
 const linesOf = (data: Tesseract.Page): OcrLine[] => (data.blocks ?? []).flatMap((b) => b.paragraphs.flatMap((p) => p.lines));
 const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(1, xs.length);
+const median = (xs: number[]) => [...xs].sort((a, b) => a - b)[xs.length >> 1] ?? 0;
+
+/** What the recogniser makes of an empty (口) or ticked (了) checkbox; another Chinese character read this confidently is a framed character. */
+const BOX_LOOKALIKES = /^[口囗□了]$/u;
+const CHARACTER_CONFIDENCE = 85;
+/** Skews smaller than this are left alone (estimateSkew's resolution). */
+const MIN_SKEW = 0.1;
+/**
+ * A page tilted less than this is recognised as scanned: the recogniser copes with a slight tilt, and
+ * redrawing the page only shifts which characters it misreads. Its layout is still found on a
+ * straightened copy, since rules must run straight to be found.
+ */
+const READ_SKEW = 1;
+/** A page read with less average confidence than this is tried upside down. */
+const UPSIDE_DOWN_CONFIDENCE = 60;
+
+/** The canvas turned by `deg` clockwise: quarter turns swap the sides, other angles keep the size. */
+function rotateCanvas(src: HTMLCanvasElement, deg: number): HTMLCanvasElement {
+  const quarter = Math.abs(deg % 180) === 90;
+  const c = document.createElement('canvas');
+  [c.width, c.height] = quarter ? [src.height, src.width] : [src.width, src.height];
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.translate(c.width / 2, c.height / 2);
+  ctx.rotate((deg * Math.PI) / 180);
+  ctx.drawImage(src, -src.width / 2, -src.height / 2);
+  return c;
+}
+
+const pixelsOf = (c: HTMLCanvasElement) => c.getContext('2d')!.getImageData(0, 0, c.width, c.height);
+const readable = (w: OcrWord) => /[\p{L}\p{N}]/u.test(w.text);
+/** Average confidence of the letter/number words of some lines (0 when there are none). */
+const confidenceOf = (lines: OcrLine[]) => {
+  const words = lines.flatMap((l) => l.words).filter(readable);
+  return words.length ? mean(words.map((w) => w.confidence)) : 0;
+};
 
 /** Latin words read with less confidence than this get a second, Chinese-only reading of their region. */
 const RECHECK_CONFIDENCE = 70;
@@ -514,24 +566,55 @@ export async function recognizePdf(pdf: PDFDocumentProxy, { signal, onProgress }
     const worker = await race(starting);
     const out: PdfPage[] = [];
     for (page = 1; page <= pages; page++) {
-      const { canvas, scale, width, height } = await race(pdf.getPage(page).then(renderPage));
-      thumbnail = thumbnailOf(canvas);
-      onProgress?.({ stage: 'recognize', page, pages, progress: (page - 1) / pages, thumbnail });
+      const pdfPage = await race(pdf.getPage(page));
+      const rendered = await race(renderPage(pdfPage));
+      const { scale } = rendered;
+      thumbnail = thumbnailOf(rendered.canvas);
+      const report = (step: OcrProgress['step'], done = 0) => onProgress?.({ stage: 'recognize', step, page, pages, progress: (page - 1 + done) / pages, thumbnail });
+      report('orient');
 
-      // Recognise a cleaned copy (colour print darkened, table rules removed); pictures are cut from the untouched page.
-      const pixels = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
-      const cleaned = new ImageData(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height);
-      deepenColour(cleaned);
-      removeRules(cleaned);
-      const text = document.createElement('canvas');
-      [text.width, text.height] = [canvas.width, canvas.height];
-      text.getContext('2d')!.putImageData(cleaned, 0, 0);
+      // Straighten the page: a quarter turn when its text runs up and down, then the skew (rendered
+      // again turned, rather than turning the rendered pixels, which would blur them).
+      let canvas = rendered.canvas;
+      const turn = lineOrientation(pixelsOf(canvas)) === 'vertical' ? 90 : 0;
+      if (turn) canvas = rotateCanvas(canvas, turn);
+      const skew = estimateSkew(pixelsOf(canvas));
+      let level: HTMLCanvasElement | undefined; // the straightened copy of a slightly tilted page, for the layout
+      if (Math.abs(skew) >= READ_SKEW) {
+        if (canvas !== rendered.canvas) canvas.width = canvas.height = 0;
+        canvas = (await race(renderPage(pdfPage, turn - skew))).canvas;
+      } else if (Math.abs(skew) >= MIN_SKEW) level = (await race(renderPage(pdfPage, turn - skew))).canvas;
 
-      await race(worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO }));
-      const lines = linesOf((await race(worker.recognize(text, {}, { blocks: true }))).data);
+      // Rules are read from the page, then erased (with colour print darkened) from the copy that is
+      // recognised; an upside-down page reads badly, so a poor first pass is tried turned around.
+      const firstPass = async (source: HTMLCanvasElement) => {
+        const pixels = pixelsOf(source);
+        const rules = findRules(pixels);
+        const cleaned = new ImageData(new Uint8ClampedArray(pixels.data), pixels.width, pixels.height);
+        deepenColour(cleaned);
+        removeRules(cleaned);
+        eraseRules(cleaned, rules.filter((r) => r.dashed));
+        const text = document.createElement('canvas');
+        [text.width, text.height] = [source.width, source.height];
+        text.getContext('2d')!.putImageData(cleaned, 0, 0);
+        await race(worker.setParameters({ tessedit_pageseg_mode: PSM.AUTO }));
+        const lines = linesOf((await race(worker.recognize(text, {}, { blocks: true }))).data);
+        return { canvas: source, pixels, rules, cleaned, text, lines, confidence: confidenceOf(lines) };
+      };
+      report('read');
+      let pass = await firstPass(canvas);
+      if (pass.confidence < UPSIDE_DOWN_CONFIDENCE) {
+        const turned = await firstPass(rotateCanvas(canvas, 180));
+        if (turned.confidence > pass.confidence + 15) {
+          pass = turned;
+          if (level) level = rotateCanvas(level, 180);
+        }
+      }
+      const { pixels, rules, cleaned, text, lines } = pass;
+      canvas = pass.canvas;
+      const [width, height] = [canvas.width / scale, canvas.height / scale];
       // Found before the second opinions, which would otherwise "read" an emblem as a confident character.
       const candidates = pictureCandidates(pixels, lines.flatMap((l) => l.words));
-
       // Text the layout analysis skipped: read each uncovered line-shaped region on its own.
       // Faint misreadings (an orange company name read as「oA」) do not count as covering their region.
       const gaps = uncoveredText(cleaned, lines.flatMap((l) => l.words.filter((w) => w.confidence >= GAP_COVER_CONFIDENCE).map((w) => w.bbox)), candidates);
@@ -597,8 +680,86 @@ export async function recognizePdf(pdf: PDFDocumentProxy, { signal, onProgress }
           });
         }
       }
-      canvas.width = canvas.height = text.width = text.height = 0;
-      out.push({ width, height, items: ocrLinesToItems(lines, scale, height), pictures });
+
+      // The layout is found on a straight page: the recognised one, or the straightened copy of a
+      // slightly tilted one, turned back here into the recognised page's pixels (shapes keep their size).
+      report('layout', 0.9);
+      const straight = level ? pixelsOf(level) : pixels;
+      const straightRules = level ? findRules(straight) : rules;
+      const [cx, cy, cos, sin] = [canvas.width / 2, canvas.height / 2, Math.cos((skew * Math.PI) / 180), Math.sin((skew * Math.PI) / 180)];
+      const back = (x: number, y: number) => (level ? [cx + (x - cx) * cos - (y - cy) * sin, cy + (x - cx) * sin + (y - cy) * cos] : [x, y]);
+      const moved = <T extends Box>(b: T): T => {
+        const [mx, my] = back((b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2);
+        const [hw, hh] = [(b.x1 - b.x0) / 2, (b.y1 - b.y0) / 2];
+        return { ...b, x0: mx - hw, y0: my - hh, x1: mx + hw, y1: my + hh };
+      };
+      // Checkboxes: square frames standing apart from the text around them (findCheckboxes); a framed
+      // character the recogniser reads confidently as itself (國、回) is not one. Whatever it made of
+      // a checkbox (口, O, [, 了) is dropped.
+      const textHeight = median(lines.map((l) => l.rowAttributes?.rowHeight || l.bbox.y1 - l.bbox.y0)) || 30;
+      const boxes = findCheckboxes(straight, textHeight)
+        .map(moved)
+        .filter((b) => {
+          if (candidates.some((c) => overlaps(c, b))) return false;
+          const within = lines.flatMap((l) => l.words).filter((w) => insidePicture(w.bbox, pad(b, 3, Infinity, Infinity)));
+          return !within.some((w) => WIDE.test(w.text) && w.confidence >= CHARACTER_CONFIDENCE && !BOX_LOOKALIKES.test(w.text));
+        });
+      // A word read across a box and its label (☑男 as「Ms」,「[手」) keeps the label: the part beside
+      // the box is read again, Chinese only, with the boxes (and a tick's tail above them) whited out.
+      const boxOf = (w: OcrWord) => boxes.find((b) => insidePicture(w.bbox, pad(b, 3, Infinity, Infinity)) || area(intersection(w.bbox, b)) >= area(b) * 0.5);
+      const spills = (w: OcrWord, b: Box) => Math.max(b.x0 - w.bbox.x0, w.bbox.x1 - b.x1) > (b.x1 - b.x0) * 0.3;
+      if (lines.some((l) => l.words.some((w) => boxOf(w) && spills(w, boxOf(w)!)))) {
+        const ctx = text.getContext('2d')!;
+        ctx.fillStyle = '#fff';
+        for (const b of boxes) {
+          const side = b.x1 - b.x0;
+          ctx.fillRect(b.x0 - 2, b.y0 - 2, side + 4, b.y1 - b.y0 + 4);
+          ctx.fillRect(b.x0, b.y0 - side * 0.4, side * 1.3, side * 0.4);
+        }
+      }
+      for (const line of lines) {
+        const words: OcrWord[] = [];
+        for (const w of line.words) {
+          const b = boxOf(w);
+          if (!b) words.push(w);
+          else if (spills(w, b)) {
+            const part = w.bbox.x1 - b.x1 >= b.x0 - w.bbox.x0 ? { ...w.bbox, x0: b.x1 } : { ...w.bbox, x1: b.x0 };
+            const region = pad(part, 6, text.width, text.height);
+            const zoom = 2;
+            const read = linesOf((await race((await race(chineseWorker())).recognize(crop(text, region, zoom), {}, { blocks: true }))).data).flatMap((l) => l.words);
+            const at = (v: number, o: number) => v / zoom + o;
+            for (const a of read) {
+              const bbox = { x0: at(a.bbox.x0, region.x0), y0: at(a.bbox.y0, region.y0), x1: at(a.bbox.x1, region.x0), y1: at(a.bbox.y1, region.y0) };
+              const taken = lines.some((l) => l.words.some((o) => o !== w && !boxOf(o) && overlaps(o.bbox, bbox)));
+              if (readable(a) && a.confidence >= GAP_WORD_CONFIDENCE && !taken && !boxOf({ ...a, bbox })) words.push({ ...a, bbox });
+            }
+          }
+        }
+        line.words = words;
+      }
+      // Rules and fills redrawn as plain shapes; none inside a picture (a photo's edges are not rules).
+      const inPicture = (b: Box) => candidates.some((c) => overlaps(c, b));
+      const paper = paperTone(pixels);
+      const toPt = { x: (v: number) => v / scale, y: (v: number) => height - v / scale, len: (v: number) => v / scale };
+      const ruled = straightRules
+        .map((r) => {
+          const [[x1, y1], [x2, y2]] = [back(r.x1, r.y1), back(r.x2, r.y2)];
+          const half = r.thickness / 2;
+          return { ...r, x1, y1, x2, y2, box: { x0: Math.min(x1, x2) - half, y0: Math.min(y1, y2) - half, x1: Math.max(x1, x2) + half, y1: Math.max(y1, y2) + half } };
+        })
+        .filter((r) => !inPicture(r.box));
+      const pageRules: PdfRule[] = ruled.map((r) => ({ x1: toPt.x(r.x1), y1: toPt.y(r.y1), x2: toPt.x(r.x2), y2: toPt.y(r.y2), width: Math.max(0.4, toPt.len(r.thickness)), color: r.color, ...(r.dashed && { dashed: true }) }));
+      const fills: PdfFill[] = findFills(straight, straightRules)
+        .map(moved)
+        .filter((f) => !inPicture(f))
+        .map((f) => ({ x: toPt.x(f.x0), y: toPt.y(f.y1), width: toPt.len(f.x1 - f.x0), height: toPt.len(f.y1 - f.y0), color: f.color }));
+      const checkboxes: PdfCheckbox[] = boxes.map((b) => ({ x: toPt.x(b.x0), y: toPt.y(b.y1), size: toPt.len(b.x1 - b.x0), checked: b.checked, color: b.color }));
+      const walls = [...boxes, ...ruled.filter((r) => Math.abs(r.x2 - r.x1) < Math.abs(r.y2 - r.y1)).map((r) => r.box)];
+      const items = ocrLinesToItems(lines, scale, height, { colourOf: (box) => textColour(pixels, box, paper), walls });
+      canvas.width = canvas.height = text.width = text.height = rendered.canvas.width = rendered.canvas.height = 0;
+      if (level) level.width = level.height = 0;
+      out.push({ width, height, items, pictures, rules: pageRules, fills, checkboxes });
+      report('layout', 1);
     }
     return out;
   } finally {

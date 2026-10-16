@@ -15,6 +15,8 @@ export interface ScanPage {
   color?: boolean;
   /** Sheet rotation in degrees, as a scanner feeds paper slightly askew. */
   tilt: number;
+  /** The whole scan turned by a quarter turn or more (paper fed sideways or upside down). */
+  rotate?: 0 | 90 | 180 | 270;
   /** Printed values on the page that the built-in rules should detect. */
   planted: [Category, string][];
   /** Handwritten values: recognition is best effort, so they are counted apart from `planted`. */
@@ -150,7 +152,7 @@ function form(f: Fake): ScanPage {
   const hand = (v: string, size = 22) =>
     `<span style="font-family:${HAND};font-size:${size}px;color:#1d3f9a;display:inline-block;transform:rotate(${jitter[j++ % jitter.length]}deg) translateY(1px)">${v}</span>`;
   const box = (checked: boolean, label: string) =>
-    `<span style="white-space:nowrap;margin-right:14px"><span style="display:inline-block;width:13px;height:13px;border:1.4px solid #222;vertical-align:-1px;position:relative">${
+    `<span style="white-space:nowrap;margin-right:14px"><span data-checkbox="${checked ? 1 : 0}" style="display:inline-block;width:13px;height:13px;border:1.4px solid #222;vertical-align:-1px;position:relative">${
       checked ? `<span style="position:absolute;left:-1px;top:-9px;font:700 19px ${HAND};color:#1d3f9a">✓</span>` : ''
     }</span> ${label}</span>`;
   const th = 'style="background:#ececec;border:1.3px solid #222;padding:7px 8px;font-weight:600;white-space:nowrap;width:94px"';

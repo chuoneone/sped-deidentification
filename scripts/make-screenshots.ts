@@ -114,6 +114,34 @@ await page.evaluate(() => {
 });
 await annotate(page, [['.badge-ocr', 1], ['.status-info', 2], ['#shot-photo', 3]]);
 await shot(page, '02g-scanned-preview');
+// 2h. The scanned form: checkboxes, table rules and fills, and the ink colour redrawn
+await page.evaluate(() => {
+  const first = document.querySelectorAll('.pdf-page')[1].querySelector('[data-checkbox]')!;
+  const preview = document.querySelector('.preview') as HTMLElement;
+  preview.scrollTop += first.getBoundingClientRect().top - preview.getBoundingClientRect().top - 230;
+});
+await page.evaluate('globalThis.__name = (f) => f'); // tsx names the helper below
+await page.evaluate(() => {
+  const form = document.querySelectorAll('.pdf-page')[1];
+  // Outlines do not show on SVG shapes: mark each target with a plain box laid over it.
+  const mark = (id: string, els: Element[]) => {
+    const rs = els.map((e) => e.getBoundingClientRect());
+    const [l, t] = [Math.min(...rs.map((r) => r.left)), Math.min(...rs.map((r) => r.top))];
+    const d = document.createElement('div');
+    d.id = id;
+    Object.assign(d.style, { position: 'absolute', pointerEvents: 'none', left: `${l + scrollX}px`, top: `${t + scrollY}px`, width: `${Math.max(...rs.map((r) => r.right)) - l}px`, height: `${Math.max(...rs.map((r) => r.bottom)) - t}px` });
+    document.body.append(d);
+  };
+  const boxes = [...form.querySelectorAll('[data-checkbox]')];
+  mark('shot-boxes', boxes.slice(3, 5)); // ☑男 ☐女
+  mark('shot-fill', [form.querySelector('[data-fill]')!]);
+  const shown = (e: Element) => e.getBoundingClientRect().top > document.querySelector('.preview')!.getBoundingClientRect().top && e.getBoundingClientRect().bottom < innerHeight - 80;
+  const ink = [...form.querySelectorAll<HTMLElement>('.pdf-item')].find((s) => shown(s) && !s.querySelector('mark') && /rgb\(\d+, \d+, (\d+)\)/.test(s.style.color) && Number(s.style.color.match(/(\d+)\)$/)![1]) > 120);
+  if (ink) mark('shot-ink', [ink]);
+});
+await annotate(page, [['#shot-boxes', 1], ['#shot-fill', 2], ['#shot-ink', 3]]);
+await shot(page, '02h-scanned-form');
+await page.evaluate(() => document.querySelectorAll('#shot-boxes, #shot-fill, #shot-ink').forEach((e) => e.remove()));
 
 // back to the contract for the remaining steps
 await page.evaluate(() => (document.querySelector('.toolbar-actions .btn-ghost') as HTMLButtonElement).click());
