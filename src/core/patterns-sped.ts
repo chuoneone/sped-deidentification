@@ -71,10 +71,11 @@ const SCHOOL_REGEX = `${PLACE_PREFIX}(?:${SCHOOL_SUFFIX})`;
 export const SCHOOL_SUFFIX_RE = new RegExp(`(?:${SCHOOL_SUFFIX})$`, 'u');
 
 /** Generic words that look like a school name's first half (一般國中、鄰近國小、原國小). */
-const GENERIC_PLACE_PREFIX = new Set(['原', '舊', '前', '鄰近', '附近', '一般', '普通', '其他', '相關', '公立', '私立', '各級', '台灣', '臺灣', '國內', '國外', '外國', '美國', '中國']);
+const GENERIC_PLACE_PREFIX = new Set(['原', '舊', '前', '鄰近', '附近', '一般', '普通', '其他', '相關', '公立', '私立', '各級', '台灣', '臺灣', '國內', '國外', '外國', '美國', '中國', '國民', '國立', '縣立', '市立', '高級', '完全', '實驗', '特殊']);
 
 function isSchoolName(m: string): boolean {
-  return !GENERIC_PLACE_PREFIX.has(m.replace(SCHOOL_SUFFIX_RE, ''));
+  const prefix = m.replace(SCHOOL_SUFFIX_RE, '');
+  return prefix !== '' && !GENERIC_PLACE_PREFIX.has(prefix); // '' is 國民小學 read as 國民＋小學
 }
 
 // ---------- 班級、學號 ----------

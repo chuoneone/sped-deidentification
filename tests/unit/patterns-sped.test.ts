@@ -133,3 +133,16 @@ describe('zh-name in IEP narrative', () => {
     expect(matches('zh-name', '程大偉說明，張志明同意，謝佩玲記錄')).toEqual(['程大偉', '張志明', '謝佩玲']);
   });
 });
+
+describe('IEP narrative, round 3', () => {
+  it('skips 信賴區間、變形金剛、戴牙套、小白板 as names', () => {
+    const text = '估計識字量(95%信賴區間)，依賴狀況減少，喜歡變形金剛，要戴牙套，利用小白板完成。';
+    expect(matches('zh-name', text)).toEqual([]);
+  });
+
+  it('skips prose before 協會 and a bare 國民小學', () => {
+    expect(matches('tw-company', '他在外面參加過協會的活動')).toEqual([]);
+    expect(matches('tw-company', '中華民國自閉症協會')).toEqual(['中華民國自閉症協會']);
+    expect(matches('sped-school', '國民小學階段')).toEqual([]);
+  });
+});
