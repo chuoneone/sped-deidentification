@@ -106,7 +106,7 @@ export function isBirthDate(match: string): boolean {
   if (word) {
     month = MONTHS.indexOf(word.slice(0, 3).toLowerCase()) + 1;
     day = numbers.find((n) => n <= 31) ?? 0;
-  } else if (/年/.test(match) || /^\d{4}/.test(match)) {
+  } else if (/年/.test(match) || /^\d{4}/.test(match) || /^\d{2,3}[-/.]\d{1,2}[-/.]\d{1,2}$/.test(match)) {
     [month, day] = [numbers[1], numbers[2]];
   } else {
     // 03/14/1985 or 14/03/1985: either order, as long as one reading is a date.
@@ -118,7 +118,7 @@ export function isBirthDate(match: string): boolean {
 
 /** How many characters at each end of a date of birth are its year (with the separator next to it). */
 export function birthYearSplit(value: string): { head: number; tail: number } {
-  const head = value.match(/^(?:(?:民國\s*)?\d{2,4}\s*年|\d{4}[-/.])\s*/)?.[0];
+  const head = value.match(/^(?:(?:民國\s*)?\d{2,4}\s*年|\d{4}[-/.]|\d{2,3}[-/.](?=\d{1,2}[-/.]\d{1,2}$))\s*/)?.[0];
   if (head) return { head: head.length, tail: 0 };
   const tail = value.match(/[\s,/.-]+\d{4}$/)?.[0];
   return tail ? { head: 0, tail: tail.length } : { head: 0, tail: 0 };

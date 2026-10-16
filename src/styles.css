@@ -29,6 +29,7 @@
   --mark-學號: #fff59d;
   --mark-醫院: #b2dfdb;
   --mark-診斷: #f0b6c8;
+  --mark-文號: #cfd8dc;
   --mark-restored: #d0f0dd;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
   font-size: 15px;
@@ -129,6 +130,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .mark-學號 { background: var(--mark-學號); }
 .mark-醫院 { background: var(--mark-醫院); }
 .mark-診斷 { background: var(--mark-診斷); }
+.mark-文號 { background: var(--mark-文號); }
 .mark-restored { background: var(--mark-restored); }
 .cancelled { text-decoration: underline dotted var(--danger); text-decoration-thickness: 2px; }
 .flash { outline: 3px solid var(--primary); outline-offset: 2px; transition: outline 0.3s; }
@@ -157,6 +159,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .badge-學號 { background: var(--mark-學號); }
 .badge-醫院 { background: var(--mark-醫院); }
 .badge-診斷 { background: var(--mark-診斷); }
+.badge-文號 { background: var(--mark-文號); }
 .tag {
   display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; line-height: 1.5;
   font-size: 0.72rem; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 0.35rem;

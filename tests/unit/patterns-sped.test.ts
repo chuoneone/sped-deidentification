@@ -157,3 +157,17 @@ describe('manual additions', () => {
     expect(items.map((i) => i.original)).toEqual(['林美玲', '美玲', '林美玲']);
   });
 });
+
+describe('table cells in Word documents', () => {
+  it('reads a date of birth from the cell next to its label, ROC years included', () => {
+    expect(matches('dob', '出生日期\n民國103年7月5日\n')).toEqual(['民國103年7月5日']);
+    expect(matches('dob', '生日：103/7/5')).toEqual(['103/7/5']);
+    expect(matches('dob', '施測日期\n114/4/24\n')).toEqual([]);
+  });
+
+  it('finds official document numbers', () => {
+    expect(matches('sped-doc-no', '鑑輔會鑑定文號\n宜府教特字第1130003339號\n')).toEqual(['宜府教特字第1130003339號']);
+    expect(matches('sped-doc-no', '依據宜府教特字第 1130003339 號函辦理')).toEqual(['宜府教特字第 1130003339 號']);
+    expect(matches('sped-doc-no', '證明字號：A123456789X')).toEqual(['A123456789X']);
+  });
+});

@@ -24,17 +24,20 @@ const TW_LANDLINE_INTL = '\\+886[-\\x20]?\\(?0?(?:826|836|82|89|37|49|[2-8])\\)?
 
 const MONTH = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)';
 /**
- * A date of birth only counts right after a label saying so, on the same line (a table's next cell
- * counts, a column header above a list of dates does not); other dates are not personal data.
+ * A date of birth only counts right after a label saying so, on the same line or, when the label stands
+ * alone in a table cell (a Word table puts each cell on its own line), in the next cell; a column header
+ * above a list of dates does not count. Other dates are not personal data.
  */
 const BIRTH_LABEL = '(?:DOB|D\\.O\\.B\\.?|[Dd]ate [Oo]f [Bb]irth|[Bb]irth ?[Dd]ate|[Bb]irthday|[Bb]orn(?: [Oo]n)?|出生日期|出生年月日|生日)';
 const BIRTH_DATE =
-  `(?<=${BIRTH_LABEL}[\\x20\\t]*[:：]?[\\x20\\t]*)(?:` +
+  `(?<=${BIRTH_LABEL}[\\x20\\t]*[:：]?[\\x20\\t]*|(?:^|\\n)[\\x20\\t]*${BIRTH_LABEL}[\\x20\\t]*[:：]?[\\x20\\t]*\\n[\\x20\\t]*)(?:` +
   '(?:民國\\s*)?\\d{2,4}\\s*年\\s*\\d{1,2}\\s*月\\s*\\d{1,2}\\s*日?' +
   '|\\d{4}[-/.]\\d{1,2}[-/.]\\d{1,2}' +
   '|\\d{1,2}[-/.]\\d{1,2}[-/.]\\d{4}' +
   `|${MONTH}\\.?\\x20+\\d{1,2}(?:st|nd|rd|th)?,?\\x20+\\d{4}` +
-  `|\\d{1,2}(?:st|nd|rd|th)?\\x20+${MONTH}\\.?,?\\x20+\\d{4})`;
+  `|\\d{1,2}(?:st|nd|rd|th)?\\x20+${MONTH}\\.?,?\\x20+\\d{4}` +
+  // 民國年：103/7/5、103.07.05
+  '|\\d{2,3}[-/.]\\d{1,2}[-/.]\\d{1,2}(?!\\d))';
 
 /** Organisation suffixes that reliably end a company name; bare 公司 is too ambiguous (本公司, 公司電話). */
 const COMPANY_SUFFIX = '(?:股份有限公司|有限公司|無限公司|兩合公司|企業社|工作室|事務所|商行|診所|基金會|協會|合作社|工程行|企業行|實業社|文化事業)';

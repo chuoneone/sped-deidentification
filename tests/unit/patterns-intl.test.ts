@@ -94,7 +94,13 @@ describe('dates of birth', () => {
 
   it('takes the next table cell but not a column of dates under a header', () => {
     expect(of('生日', '姓名\t王小明\t出生日期\t1990-01-02')).toEqual(['1990-01-02']);
-    expect(of('生日', '編號\t姓名\t出生日期\n001\t王小明\t1974-10-27\n出生日期\n1974-10-27')).toEqual([]);
+    expect(of('生日', '編號\t姓名\t出生日期\n001\t王小明\t1974-10-27')).toEqual([]);
+  });
+
+  it('takes the next cell of a Word table, where each cell is its own line', () => {
+    // A label alone on its line followed by a date reads the same as a one-column header above a date;
+    // the Word-table case matters more for IEPs, and a date under 出生日期 is a birth date anyway.
+    expect(of('生日', '出生日期\n1974-10-27\n')).toEqual(['1974-10-27']);
   });
 
   it('leaves unlabelled and impossible dates alone', () => {

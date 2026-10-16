@@ -92,6 +92,14 @@ const STUDENT_NO_REGEX =
   // Folder or file names such as 70123_王小明.
   `|(?<![\\dA-Za-z])\\d{5,6}(?=_[${CJK}]{2,4})`;
 
+// ---------- 公文文號 ----------
+
+/** Characters that come before a document number in prose but never inside the issuing office's abbreviation. */
+const DOC_NO_STOP = '依據函文號於經之的為與及和由請查見如附准';
+const DOC_NO_REGEX =
+  `(?:(?![${DOC_NO_STOP}])[${CJK}（）()]){1,10}?字第[\x20\t]*[A-Za-z0-9-]{4,15}[\x20\t]*號` +
+  `|${afterLabel('鑑定文號|公文文號|發文字號|證明字號|文號')}[A-Za-z0-9-]{5,15}(?![A-Za-z0-9-])`;
+
 // ---------- 醫院、診斷 ----------
 
 const HOSPITAL_SUFFIX =
@@ -166,6 +174,17 @@ export const SPED_PATTERNS: Pattern[] = [
     source: 'builtin',
     regex: STUDENT_NO_REGEX,
     example: '學號：70123、70123_王小明',
+    enabled: true,
+  },
+  {
+    id: 'sped-doc-no',
+    name: '公文文號／鑑定文號',
+    group: 'sped',
+    note: '「○○字第 1130003339 號」形式的公文文號（含鑑輔會鑑定文號），以及「鑑定文號：」「證明字號：」欄位後的編號',
+    category: '文號',
+    source: 'builtin',
+    regex: DOC_NO_REGEX,
+    example: '宜府教特字第1130003339號、鑑定文號：1130003339',
     enabled: true,
   },
   {
