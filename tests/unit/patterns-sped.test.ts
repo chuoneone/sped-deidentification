@@ -46,6 +46,12 @@ describe('sped-name-link', () => {
     expect(all(text).filter((x) => x.startsWith('姓名'))).toEqual(['姓名:鄔小華', '姓名:小華', '姓名:鄔小華']);
   });
 
+  it('does not spread the given name of a name guessed from running text', () => {
+    // 兒「童教育」is no name; its「教育」must not be hidden everywhere else.
+    const text = '王小明接受兒童教育。小明喜歡畫畫。發展、醫療與教育史';
+    expect(all(text).filter((x) => x.startsWith('姓名'))).toEqual(['姓名:王小明']);
+  });
+
   it('can be switched off', () => {
     const patterns = BUILTIN_PATTERNS.map((p) => (p.id === 'sped-name-link' ? { ...p, enabled: false } : p));
     const names = detect('學生：鄔小華\n小華今天情緒穩定', patterns).map((i) => i.original);
@@ -95,5 +101,22 @@ describe('standard partial retention', () => {
     expect(standardSplit('班級', '701班')).toEqual({ head: 1, tail: 0 });
     expect(standardSplit('姓名', '小華')).toEqual({ head: 0, tail: 0 });
     expect(standardSplit('姓名', '王小明')).toEqual({ head: 1, tail: 0 });
+  });
+});
+
+describe('zh-name in IEP wording', () => {
+  it('skips everyday IEP words that start with a surname character', () => {
+    const text =
+      '懷孕過程無特殊狀況，與同齡兒童無異，幼童時期接受兒童教育。施測結果顯示魏氏兒童智力量表偏低。' +
+      '管教方式民主，溫和有禮，易分心。健康狀況：身高體重正常。簡化作業。';
+    expect(matches('zh-name', text)).toEqual([]);
+  });
+
+  it('still finds real names next to those words', () => {
+    expect(matches('zh-name', '童小芬同學與高志明老師')).toEqual(['童小芬', '高志明']);
+  });
+
+  it('does not read 完成國中 as a school', () => {
+    expect(matches('sped-school', '能完成國中一年級程度數學運算')).toEqual([]);
   });
 });

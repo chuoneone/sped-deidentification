@@ -5,6 +5,8 @@ import { COMPOUND_SURNAMES } from './mask';
 
 /** The rules-page switch for linking names (see linkNames); its RegExp never matches. */
 const NAME_LINK_ID = 'sped-name-link';
+/** Names found after a label (學生姓名：…) are reliable enough to link their given name. */
+const LABEL_NAME_ID = 'sped-label-name';
 
 let nextId = 1;
 function newId(): string {
@@ -16,6 +18,8 @@ interface Candidate {
   start: number;
   end: number;
   retention?: Retention;
+  /** The rule that found it; absent for linked occurrences. */
+  patternId?: string;
 }
 
 function makeItem(text: string, start: number, end: number, category: Category, book: CodeBook, origin: 'auto' | 'manual', retention?: Retention): RedactionItem {
@@ -62,8 +66,10 @@ function resolveOverlaps(cands: Candidate[]): Candidate[] {
 }
 
 /**
- * Every other occurrence of a detected name also counts, and so does its given name on its own
- * (王小明 → 小明, 2+ characters), as minutes and IEPs often call a student by given name only.
+ * Every other occurrence of a detected name also counts. A name found after a label also links its
+ * given name on its own (學生姓名：王小明 → 小明, 2+ characters), as minutes and IEPs often call a
+ * student by given name only; names guessed from running text do not, so a misread like 兒「童教育」
+ * cannot spread「教育」over the whole document.
  */
 function linkNames(text: string, chosen: Candidate[]): Candidate[] {
   const variants = new Map<string, Candidate>();
@@ -72,7 +78,7 @@ function linkNames(text: string, chosen: Candidate[]): Candidate[] {
     const name = text.slice(c.start, c.end);
     if (!variants.has(name)) variants.set(name, c);
     const given = name.slice(COMPOUND_SURNAMES.some((s) => name.startsWith(s)) ? 2 : 1);
-    if (given.length >= 2 && !variants.has(given)) variants.set(given, c);
+    if (c.patternId === LABEL_NAME_ID && given.length >= 2 && !variants.has(given)) variants.set(given, c);
   }
   const extra: Candidate[] = [];
   for (const [value, c] of variants) {
@@ -104,7 +110,7 @@ export function detect(text: string, patterns: Pattern[], book: CodeBook = new C
       // A shorter accepted length keeps only that much; matching resumes right after it.
       const length = verdict === true ? m[0].length : Math.min(verdict, m[0].length);
       if (length < m[0].length) re.lastIndex = m.index + length;
-      cands.push({ category: p.category, start: m.index, end: m.index + length, retention: p.retention });
+      cands.push({ category: p.category, start: m.index, end: m.index + length, retention: p.retention, patternId: p.id });
     }
   }
   let chosen = resolveOverlaps(cands);
