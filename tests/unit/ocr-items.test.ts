@@ -83,7 +83,32 @@ describe('ocrLinesToItems', () => {
       rowAttributes: { rowHeight: 50 },
     };
     const [label, note] = ocrLinesToItems([l], 1, 1000);
-    expect(label).toMatchObject({ text: '正本', y: 1000 - 300, fontSize: 24 });
+    expect(label).toMatchObject({ text: '正本', y: 1000 - 300 });
+    expect(label.fontSize).toBeCloseTo(20 / 0.95); // sized by its Chinese characters
     expect(note).toMatchObject({ text: '改', y: 1000 - 330, fontSize: 50 });
+  });
+
+  it('sizes a Chinese run by its characters, not by the row height', () => {
+    // The row height includes the line spacing (≈1.24 em); Chinese characters fill about 0.95 em.
+    const l: OcrLine = {
+      words: ['調', '整', '服', '務'].map((text, k) => ({ text, confidence: 95, bbox: { x0: k * 22, y0: 81, x1: k * 22 + 19, y1: 100 } })),
+      bbox: { x0: 0, y0: 76, x1: 85, y1: 101 },
+      baseline: { x0: 0, y0: 100, x1: 85, y1: 100 },
+      rowAttributes: { rowHeight: 25 },
+    };
+    expect(ocrLinesToItems([l], 1, 1000)[0].fontSize).toBeCloseTo(20);
+  });
+
+  it('shrinks cramped lines so that no two runs overlap, and leaves spaced ones alone', () => {
+    // Glyphs reach 0.12 em below the baseline and 0.88 em above it.
+    const span = (it: { y: number; fontSize: number }) => [it.y - 0.12 * it.fontSize, it.y + 0.88 * it.fontSize];
+    const [upper, lower] = ocrLinesToItems([line([['Chiang-Chun-Hsuan', 0, 160]], 100), line([['Customer', 20, 120]], 116)], 1, 1000);
+    expect(span(lower)[1]).toBeLessThanOrEqual(span(upper)[0] + 1e-9);
+    expect(upper.fontSize).toBe(H);
+    expect(lower.fontSize).toBeLessThan(H);
+    const spaced = ocrLinesToItems([line([['Name', 0, 60]], 100), line([['Title', 0, 60]], 130)], 1, 1000);
+    expect(spaced.map((it) => it.fontSize)).toEqual([H, H]);
+    // Side by side on one line, however close: not stacked, so untouched.
+    expect(ocrLinesToItems([line([['姓', 0, 18], ['名', 22, 40], ['王', 120, 138], ['小', 142, 160]])], 1, 1000).every((it) => it.fontSize === H)).toBe(true);
   });
 });

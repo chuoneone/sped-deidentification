@@ -63,6 +63,10 @@ const NUMBER_GAP = 0.2;
 const MIN_SYMBOL_CONFIDENCE = 60;
 /** CJK ideographs, kana, bopomofo, CJK punctuation and fullwidth forms. */
 const WIDE = /[⺀-鿿豈-﫿︰-﹏＀-￯]/u;
+/** One Chinese character (not punctuation). */
+const HAN = /^\p{Script=Han}$/u;
+/** A word of Chinese characters only. */
+const HAN_WORD = /^\p{Script=Han}+$/u;
 const SYMBOLS_ONLY = /^[^\p{L}\p{N}]+$/u;
 /** Table borders and underlines read as characters. */
 const RULE_CHARS = /[|｜_＿=~]/u;
@@ -139,6 +143,10 @@ export function ocrLinesToItems(
       // A line can join runs of different sizes (a printed label beside a large handwritten note), so
       // a run is never drawn larger than its own tallest glyphs allow.
       const tallest = Math.max(...run.map((w) => w.bbox.y1 - w.bbox.y0));
+      // Chinese characters fill about 0.95 em: a steadier measure than the row height, which
+      // includes the line spacing (≈1.24 em) and drew Chinese text a fifth too large.
+      const han = run.filter((w) => HAN_WORD.test(w.text)).map((w) => w.bbox.y1 - w.bbox.y0);
+      const byHan = han.length >= 2 ? median(han) / HAN_EM : Infinity;
       // …nor below its own glyphs: such a line's baseline belongs to the larger neighbour.
       const bottom = Math.max(...run.map((w) => w.bbox.y1));
       const color = colourOf?.({ x0: first.x0, y0: Math.min(...run.map((w) => w.bbox.y0)), x1: run.at(-1)!.bbox.x1, y1: bottom });
@@ -147,7 +155,7 @@ export function ocrLinesToItems(
         text: fixConfusables(text),
         x: first.x0 / scale,
         y: pageHeight - Math.min(baselineAt(first.x0), bottom) / scale,
-        fontSize: Math.min(h, tallest * 1.2) / scale,
+        fontSize: Math.min(h, tallest * 1.2, byHan) / scale,
         width: (run.at(-1)!.bbox.x1 - first.x0) / scale,
       });
       run = [];
@@ -161,7 +169,32 @@ export function ocrLinesToItems(
     }
     flush();
   }
+  separateLines(items);
   return items;
+}
+
+/** Ink height of a Chinese character, in em; glyphs reach 0.12 em below the baseline and 0.88 above. */
+const HAN_EM = 0.95;
+const DESCENT = 0.12;
+const ASCENT = 0.88;
+
+/**
+ * Shrinks runs whose glyphs would reach into the run above them (cramped lines on a business card,
+ * a baseline misjudged on a tilted one): the lower run alone when that keeps most of its size,
+ * otherwise both. Runs side by side on one line are not stacked and are left alone.
+ */
+function separateLines(items: PdfTextItem[]): void {
+  for (const a of items) {
+    for (const b of items) {
+      const pitch = b.y - a.y; // b is the upper run
+      if (pitch <= Math.min(a.fontSize, b.fontSize) * 0.3 || Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) <= 1) continue;
+      const need = ASCENT * a.fontSize + DESCENT * b.fontSize;
+      if (need <= pitch) continue;
+      const lower = (pitch - DESCENT * b.fontSize) / ASCENT;
+      if (lower >= a.fontSize * 0.6) a.fontSize = lower;
+      else [a.fontSize, b.fontSize] = [(a.fontSize * pitch) / need, (b.fontSize * pitch) / need];
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------------------
@@ -423,6 +456,27 @@ export function uncoveredText(img: Raster, words: Box[], skip: Box[]): Box[] {
     .map(({ x0, y0, x1, y1 }) => ({ x0, y0, x1, y1 }));
 }
 
+/**
+ * Where uncovered ink starts just before a line's first word (a list number 一、 the recogniser
+ * dropped: alone it is a bare stroke), or null. Looks up to 2.5 row heights to the left, within the
+ * line's height, at dark pixels that no clearly read word covers; the ink must reach to within a row
+ * height of the word, as a list number does (a table's previous cell stands further off).
+ */
+export function leadingInk(img: Raster, line: Box, rowHeight: number, covered: Box[]): number | null {
+  const { data, width: w, height: h } = img;
+  const [x0, x1, y0, y1] = [Math.max(0, Math.round(line.x0 - rowHeight * 2.5)), Math.round(line.x0 - 2), Math.max(0, Math.round(line.y0)), Math.min(h, Math.round(line.y1))];
+  const near = covered.filter((b) => b.x0 < x1 && b.x1 > x0 && b.y0 < y1 && b.y1 > y0);
+  let [left, right, ink] = [Infinity, -Infinity, 0];
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      if (luminance(data, (y * w + x) * 4) >= 150 || near.some((b) => x >= b.x0 && x < b.x1 && y >= b.y0 && y < b.y1)) continue;
+      ink++;
+      [left, right] = [Math.min(left, x), Math.max(right, x)];
+    }
+  }
+  return ink >= rowHeight && right >= line.x0 - rowHeight ? left : null;
+}
+
 // ---------------------------------------------------------------------------------------
 // Browser side: render, recognise, second opinions, pictures.
 // ---------------------------------------------------------------------------------------
@@ -505,6 +559,17 @@ const confidenceOf = (lines: OcrLine[]) => {
 
 /** Latin words read with less confidence than this get a second, Chinese-only reading of their region. */
 const RECHECK_CONFIDENCE = 70;
+/** …and so do 1–3 letter Latin fragments in a Chinese line below this (丁承 read as「TR」at 74). */
+const SHORT_LATIN_CONFIDENCE = 90;
+/**
+ * Single Chinese characters below this (函 read as「闊」at 0) get one too, at most CJK_RECHECK_MAX a
+ * page, and take it only when it is clearly better: an unsure name character (婷 at 20) is often right.
+ */
+const CJK_RECHECK_CONFIDENCE = 10;
+const CJK_RECHECK_MARGIN = 15;
+const CJK_RECHECK_MAX = 20;
+/** Lines whose start is read again with the uncovered ink before it (list numbers), at most this many a page. */
+const LEADING_MAX = 15;
 /** Page-pass words below this confidence are treated as unread when looking for skipped text. */
 const GAP_COVER_CONFIDENCE = 30;
 /** A line read in a skipped region is kept if any word in it reads this confidently (else speckle noise). */
@@ -618,37 +683,93 @@ export async function recognizePdf(pdf: PDFDocumentProxy, { signal, onProgress }
       // Text the layout analysis skipped: read each uncovered line-shaped region on its own.
       // Faint misreadings (an orange company name read as「oA」) do not count as covering their region.
       const gaps = uncoveredText(cleaned, lines.flatMap((l) => l.words.filter((w) => w.confidence >= GAP_COVER_CONFIDENCE).map((w) => w.bbox)), candidates);
+      /** Lines read from a region of the cleaned page, enlarged `zoom` times, back in page pixels. */
+      const readAt = async (reader: Tesseract.Worker, area: Box, zoom = 1): Promise<OcrLine[]> => {
+        const shift = (b: Box): Box => ({ x0: b.x0 / zoom + area.x0, y0: b.y0 / zoom + area.y0, x1: b.x1 / zoom + area.x0, y1: b.y1 / zoom + area.y0 });
+        return linesOf((await race(reader.recognize(crop(text, area, zoom), {}, { blocks: true }))).data).map((l) => ({
+          words: l.words.map((w) => ({ ...w, bbox: shift(w.bbox) })),
+          bbox: shift(l.bbox),
+          baseline: l.baseline && shift(l.baseline),
+          rowAttributes: l.rowAttributes && { rowHeight: l.rowAttributes.rowHeight / zoom },
+        }));
+      };
+      const clear = (found: OcrLine[]) => found.some((l) => l.words.some((w) => w.confidence >= GAP_WORD_CONFIDENCE));
       if (gaps.length > 0) {
         await race(worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_BLOCK }));
         for (const gap of gaps) {
-          const area = pad(gap, 8, text.width, text.height);
-          for (const found of linesOf((await race(worker.recognize(crop(text, area), {}, { blocks: true }))).data)) {
-            const shift = (b: Box): Box => ({ x0: b.x0 + area.x0, y0: b.y0 + area.y0, x1: b.x1 + area.x0, y1: b.y1 + area.y0 });
+          const region = pad(gap, 8, text.width, text.height);
+          // Letter-spaced large type (董　事　長) that the page pass did not see at all often reads only
+          // enlarged. Under a faint misreading (游文瑜 as「WESC」) the second opinion below does better.
+          let found = await readAt(worker, region);
+          if (!clear(found) && lines.every((l) => l.words.every((w) => !overlaps(w.bbox, region)))) found = await readAt(worker, region, 2);
+          for (const line of found) {
             // A line counts once something in it reads clearly; then its CJK characters stay even when
             // unsure (廖宜婷 with 婷 at 20), Latin fragments only when clear (they get a second opinion next).
-            if (!found.words.some((w) => w.confidence >= GAP_WORD_CONFIDENCE)) continue;
-            const read = found.words.filter((w) => WIDE.test(w.text) || w.confidence >= GAP_WORD_CONFIDENCE / 2).map((w) => ({ ...w, bbox: shift(w.bbox) }));
+            if (!clear([line])) continue;
+            const read = line.words.filter((w) => WIDE.test(w.text) || w.confidence >= GAP_WORD_CONFIDENCE / 2);
             // A new reading replaces the page pass's words under it only where it is more confident.
             const words = read.filter((n) => lines.every((l) => l.words.every((w) => !overlaps(n.bbox, w.bbox) || w.confidence < n.confidence)));
             if (words.length === 0) continue;
-            for (const line of lines) line.words = line.words.filter((w) => !words.some((n) => overlaps(n.bbox, w.bbox)));
-            lines.push({ ...found, words, bbox: shift(found.bbox), baseline: found.baseline && shift(found.baseline) });
+            for (const l of lines) l.words = l.words.filter((w) => !words.some((n) => overlaps(n.bbox, w.bbox)));
+            lines.push({ ...line, words });
           }
         }
       }
 
+      // A line's start read again with the ink just before it, which alone was too slight to read:
+      // 一、 is a bare stroke, but「一、依據」reads. New words before the first one are added; unclear
+      // words they cover (六 read as「人 大」) go.
+      const coveredBy = () => lines.flatMap((l) => l.words.filter((w) => w.confidence >= GAP_COVER_CONFIDENCE).map((w) => w.bbox));
+      const leading = lines
+        .filter((l) => l.words.length > 0 && !candidates.some((c) => overlaps(c, l.bbox)))
+        .map((l) => {
+          const first = l.words.reduce((a, b) => (b.bbox.x0 < a.bbox.x0 ? b : a));
+          const h = l.rowAttributes?.rowHeight || l.bbox.y1 - l.bbox.y0;
+          return { l, first, h, ink: leadingInk(cleaned, { ...l.bbox, x0: first.bbox.x0 }, h, coveredBy()) };
+        })
+        .filter((c) => c.ink !== null)
+        .slice(0, LEADING_MAX);
+      if (leading.length > 0) {
+        await race(worker.setParameters({ tessedit_pageseg_mode: PSM.SINGLE_LINE }));
+        for (const { l, first, h, ink } of leading) {
+          // About five characters of the line give the recogniser enough to go on.
+          const area = pad({ x0: ink!, y0: l.bbox.y0, x1: Math.min(l.bbox.x1, first.bbox.x0 + h * 5), y1: l.bbox.y1 }, 8, text.width, text.height);
+          const taken = coveredBy();
+          const before = (found: OcrLine[]) =>
+            found
+              .flatMap((f) => f.words)
+              .filter((w) => (w.bbox.x0 + w.bbox.x1) / 2 < first.bbox.x0 && WIDE.test(w.text) && w.confidence >= GAP_WORD_CONFIDENCE && !taken.some((b) => insidePicture(w.bbox, b)));
+          let added = before(await readAt(worker, area));
+          if (added.length === 0) added = before(await readAt(worker, area, 2));
+          if (added.length === 0) continue;
+          for (const o of lines) o.words = o.words.filter((w) => w.confidence >= GAP_COVER_CONFIDENCE || !added.some((n) => overlaps(n.bbox, w.bbox)));
+          l.words = [...added, ...l.words];
+          l.bbox = { ...l.bbox, x0: Math.min(l.bbox.x0, ...added.map((w) => w.bbox.x0)) };
+        }
+      }
+
+      // Second opinions, Chinese only: unsure Latin words; short Latin fragments in a Chinese line
+      // (handwritten 丁承 read as「TR」); single Chinese characters read almost blindly (函 as「闊」).
+      let cjkRechecks = 0;
       for (const line of lines) {
+        const chinese = line.words.some((w) => WIDE.test(w.text));
         for (let i = 0; i < line.words.length; i++) {
           const word = line.words[i];
-          if (word.confidence >= RECHECK_CONFIDENCE || WIDE.test(word.text) || SYMBOLS_ONLY.test(word.text)) continue;
+          const latin = !WIDE.test(word.text) && !SYMBOLS_ONLY.test(word.text);
+          const unsureLatin = latin && (word.confidence < RECHECK_CONFIDENCE || (chinese && /^[A-Za-z]{1,3}$/.test(word.text) && word.confidence < SHORT_LATIN_CONFIDENCE));
+          const unsureChar = HAN.test(word.text) && word.confidence < CJK_RECHECK_CONFIDENCE && cjkRechecks < CJK_RECHECK_MAX;
+          if (!unsureLatin && !unsureChar) continue;
           if (candidates.some((c) => insidePicture(word.bbox, c))) continue;
+          if (unsureChar) cjkRechecks++;
           const area = pad(word.bbox, 6, text.width, text.height);
           let best: { words: OcrWord[]; confidence: number; zoom: number } | null = null;
           for (const zoom of RECHECK_ZOOMS) {
             const alt = linesOf((await race((await race(chineseWorker())).recognize(crop(text, area, zoom), {}, { blocks: true }))).data).flatMap((l) => l.words);
             const confidence = mean(alt.map((a) => a.confidence));
-            const needed = alt.every((a) => WIDE.test(a.text)) ? word.confidence : word.confidence + RECHECK_MARGIN;
-            if (alt.length > 0 && confidence > needed && confidence > (best?.confidence ?? -1)) best = { words: alt, confidence, zoom };
+            const needed = unsureChar ? word.confidence + CJK_RECHECK_MARGIN : alt.every((a) => WIDE.test(a.text)) ? word.confidence : word.confidence + RECHECK_MARGIN;
+            // A character stays a single character.
+            const fits = !unsureChar || (alt.length === 1 && HAN.test(alt[0].text));
+            if (alt.length > 0 && fits && confidence > needed && confidence > (best?.confidence ?? -1)) best = { words: alt, confidence, zoom };
           }
           if (!best) continue;
           const { zoom } = best;

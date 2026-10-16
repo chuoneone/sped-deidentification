@@ -1,4 +1,5 @@
 import type { LoadedDocument, MappingEntry } from '../core/types';
+import { parseMarkers } from '../core/codes';
 import { parseMapping } from '../core/csv';
 import { restore, type RestoreResult } from '../core/restorer';
 import { ACCEPT_ATTR, generateDocument, outputFileName, parseDocument } from '../formats';
@@ -75,9 +76,13 @@ async function loadDocChecked(file: File, root: HTMLElement): Promise<void> {
   if ((await rejectOversized([file])).length > 0) await withBusy('讀取檔案中…', () => loadDoc(file, root));
 }
 
+/** Output written with 類別 or 空白佔位 carries no codes, so there is nothing to restore. */
+const NO_MARKERS = '這份文件裡找不到編碼標記；若去識別化時標記方式選了「類別」或「空白佔位」，就無法還原。';
+
 async function loadDoc(file: File, root: HTMLElement): Promise<void> {
   try {
     state.doc = await parseDocument(file);
+    if (!state.mapping && parseMarkers(state.doc.text).length === 0) toast(NO_MARKERS, 'error', 8000);
     state.result = null;
     tryRestore();
     render(root);
@@ -106,6 +111,7 @@ function tryRestore(): void {
   if (!state.doc || !state.mapping) return;
   state.result = restore(state.doc.text, state.mapping);
   if (state.result.missingCodes.length) toast(`有 ${state.result.missingCodes.length} 個編碼在編碼表中找不到`, 'error', 7000);
+  else if (state.result.restoredCount === 0) toast(NO_MARKERS, 'error', 8000);
   else toast(`已還原 ${state.result.restoredCount} 筆`, 'success');
 }
 

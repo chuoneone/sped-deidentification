@@ -403,6 +403,7 @@ body:has(.site-info-dialog[open]) { overflow: hidden; }
 .output-panel[open] .output-panel-summary { margin-bottom: 0.5rem; }
 .summary-main { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; min-width: 0; }
 .mode-pill { background: #eef3ff; color: var(--primary); font-weight: 600; font-size: 0.85rem; padding: 0.1rem 0.6rem; border-radius: 999px; }
+.mode-pill-final { background: #fff4e5; color: #9a5b00; }
 .summary-action { flex-shrink: 0; border-color: var(--primary); color: var(--primary); font-weight: 600; }
 .output-panel:not([open]) { background: #f8faff; border-color: #c9d6f5; }
 .output-modes { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.5rem; }

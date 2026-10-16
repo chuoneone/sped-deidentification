@@ -77,6 +77,26 @@ describe('manifestCsv', () => {
 });
 
 describe('buildArchive', () => {
+  it('writes the documents only, without any mapping table, when restoring is not needed', async () => {
+    const entries = [
+      await entryFromText('a.txt', '客戶林美玲，電話 0933-222-111。'),
+      await entryFromText('b.txt', '聯絡信箱：mei.lin@example.com。'),
+    ];
+    const merged = [{ code: 'abcdef', category: '姓名', original: '林美玲' }];
+    for (const style of ['label', 'blank'] as const) {
+      const { blob, manifest } = await buildArchive(entries, merged, style);
+      const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+      expect(Object.keys(zip.files).sort()).toEqual(['a.deid.txt', 'b.deid.txt', '清單.csv']);
+      expect(manifest.every((r) => r.mapping === '')).toBe(true);
+      const list = await zip.file('清單.csv')!.async('string');
+      expect(list).toContain('檔案,去識別化檔,生效筆數');
+      expect(list).not.toContain('編碼表');
+      const out = await zip.file('a.deid.txt')!.async('string');
+      expect(out).not.toMatch(/\[[^\]]+:[0-9a-f]{6}\]/);
+      expect(out).toContain(style === 'label' ? '[手機]' : '○○○');
+    }
+  });
+
   it('packs four entries (one with a colliding mapping name) into a 9-file archive with a correct manifest', async () => {
     const sampleTxt = readFileSync(SAMPLE_TXT_PATH, 'utf-8');
     const quoteTxt =

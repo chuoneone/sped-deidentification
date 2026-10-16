@@ -181,6 +181,22 @@ await shot(page, '02e-output-custom');
 // back to the default 部分保留 with the panel collapsed for the remaining steps
 await page.click('input[name=output-mode][value=preview]');
 await new Promise((r) => setTimeout(r, 300));
+// 2i/2j. Marker style 空白佔位 (no restoring): the options, then the preview and toolbar it leads to
+await setPanel(true);
+await page.click('input[name=marker-style][value=blank]');
+await new Promise((r) => setTimeout(r, 300));
+await setPanel(true);
+await page.evaluate(() => document.querySelector('.marker-modes')!.scrollIntoView({ block: 'center' }));
+await annotate(page, [['.marker-modes', 1], ['.marker-notice', 2]]);
+await shot(page, '02i-marker-style');
+await setPanel(false);
+await page.evaluate(() => window.scrollTo(0, 0));
+await new Promise((r) => setTimeout(r, 300));
+await annotate(page, [['.mode-pill-final', 1], ['.preview .mark', 2], ['.btn-strong', 3], ['.status-line > span', 4]]);
+await shot(page, '02j-marker-preview');
+await setPanel(true);
+await page.click('input[name=marker-style][value=code]');
+await new Promise((r) => setTimeout(r, 300));
 await setPanel(false);
 
 // 3. Tooltip on hover

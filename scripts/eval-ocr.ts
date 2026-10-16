@@ -139,7 +139,16 @@ async function readSite(browser: Browser, source: string) {
         const [x, y, size, checked] = nums(el, 'data-checkbox');
         return { x, y, size, checked: checked === 1 };
       });
-      return { text, found, pictures, rules, fills, checkboxes };
+      // Text runs as drawn: glyphs span from 0.12 em below the baseline to 0.88 em above it.
+      const runs = [...pg.querySelectorAll<HTMLElement>('.pdf-item')].map((s) => {
+        const size = pt(s.style.fontSize);
+        const top = pt(s.style.top) - 0.08 * size;
+        return { x0: pt(s.style.left), x1: pt(s.style.left) + Number(s.dataset.w), y0: top, y1: top + size, text: s.textContent ?? '' };
+      });
+      const overlaps = runs.flatMap((a, i) =>
+        runs.slice(i + 1).filter((b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 1 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5).map((b) => `${a.text.slice(0, 12)}／${b.text.slice(0, 12)}`),
+      );
+      return { text, found, pictures, rules, fills, checkboxes, overlaps };
     }),
   );
   await page.close();
@@ -190,6 +199,7 @@ function score(truth: AnswerPage, got: Read, page: number) {
     rules: [rulesFound, truth.rules.length, rulesRight, got.rules.length],
     fills: [fillsFound, truth.fills.length, got.fills.length],
     checkboxes: [boxesFound.length, boxesRight.length, truth.checkboxes.length, got.checkboxes.length],
+    overlaps: got.overlaps,
     missedValues,
   };
 }
@@ -209,14 +219,14 @@ try {
     const sum = (f: (r: (typeof rows)[number]) => number) => rows.reduce((n, r) => n + f(r), 0);
     console.log(`\n${answer.source}（${rows.length} 頁，${seconds.toFixed(1)} 秒）\n`);
     if (name === 'main') {
-      console.log('頁 | 內容 | 字元召回 | 字元精確 | 印刷值 | 手寫值 | 讀錯仍遮蔽 | 誤判 | 圖片 | 線段召回 | 線段精確 | 底色 | 勾選框（找到／狀態對／原稿）');
+      console.log('頁 | 內容 | 字元召回 | 字元精確 | 印刷值 | 手寫值 | 讀錯仍遮蔽 | 誤判 | 圖片 | 線段召回 | 線段精確 | 底色 | 勾選框（找到／狀態對／原稿） | 文字重疊');
       for (const r of rows) {
         console.log(
-          `${r.page} | ${r.title} | ${pct(r.charRecall)} | ${pct(r.charPrecision)} | ${ratio(r.printed[0], r.printed[1])} | ${ratio(r.handwritten[0], r.handwritten[1])} | ${r.misread.length} | ${r.falsePositives.length} | ${ratio(r.pictures[0], r.pictures[1])}${r.pictures[2] ? `（+${r.pictures[2]}）` : ''} | ${ratio(r.rules[0], r.rules[1])} | ${ratio(r.rules[2], r.rules[3])} | ${ratio(r.fills[0], r.fills[1])}${r.fills[2] > r.fills[0] ? `（畫了 ${r.fills[2]}）` : ''} | ${boxes(r.checkboxes)}`,
+          `${r.page} | ${r.title} | ${pct(r.charRecall)} | ${pct(r.charPrecision)} | ${ratio(r.printed[0], r.printed[1])} | ${ratio(r.handwritten[0], r.handwritten[1])} | ${r.misread.length} | ${r.falsePositives.length} | ${ratio(r.pictures[0], r.pictures[1])}${r.pictures[2] ? `（+${r.pictures[2]}）` : ''} | ${ratio(r.rules[0], r.rules[1])} | ${ratio(r.rules[2], r.rules[3])} | ${ratio(r.fills[0], r.fills[1])}${r.fills[2] > r.fills[0] ? `（畫了 ${r.fills[2]}）` : ''} | ${boxes(r.checkboxes)} | ${r.overlaps.length}`,
         );
       }
       console.log(
-        `合計 | | ${pct(sum((r) => r.chars.same) / sum((r) => r.chars.truth))} | ${pct(sum((r) => r.chars.same) / sum((r) => r.chars.read))} | ${sum((r) => r.printed[0])}/${sum((r) => r.printed[1])} | ${sum((r) => r.handwritten[0])}/${sum((r) => r.handwritten[1])} | ${sum((r) => r.misread.length)} | ${sum((r) => r.falsePositives.length)} | ${sum((r) => r.pictures[0])}/${sum((r) => r.pictures[1])} | ${sum((r) => r.rules[0])}/${sum((r) => r.rules[1])} | ${sum((r) => r.rules[2])}/${sum((r) => r.rules[3])} | ${sum((r) => r.fills[0])}/${sum((r) => r.fills[1])} | ${sum((r) => r.checkboxes[0])}／${sum((r) => r.checkboxes[1])}／${sum((r) => r.checkboxes[2])}`,
+        `合計 | | ${pct(sum((r) => r.chars.same) / sum((r) => r.chars.truth))} | ${pct(sum((r) => r.chars.same) / sum((r) => r.chars.read))} | ${sum((r) => r.printed[0])}/${sum((r) => r.printed[1])} | ${sum((r) => r.handwritten[0])}/${sum((r) => r.handwritten[1])} | ${sum((r) => r.misread.length)} | ${sum((r) => r.falsePositives.length)} | ${sum((r) => r.pictures[0])}/${sum((r) => r.pictures[1])} | ${sum((r) => r.rules[0])}/${sum((r) => r.rules[1])} | ${sum((r) => r.rules[2])}/${sum((r) => r.rules[3])} | ${sum((r) => r.fills[0])}/${sum((r) => r.fills[1])} | ${sum((r) => r.checkboxes[0])}／${sum((r) => r.checkboxes[1])}／${sum((r) => r.checkboxes[2])} | ${sum((r) => r.overlaps.length)}`,
       );
     } else {
       console.log('頁 | 內容 | 角度 | 字元召回 | 印刷值 | 線段召回 | 勾選框（找到／狀態對／原稿）');
@@ -230,6 +240,7 @@ try {
         if (r.missedValues.length) console.log('  漏抓：', r.missedValues.join('；'));
         if (r.misread.length) console.log('  讀錯仍遮蔽：', r.misread.join('；'));
         if (r.falsePositives.length) console.log('  誤判：', r.falsePositives.join('；'));
+        if (r.overlaps.length) console.log('  重疊的文字：', r.overlaps.join('；'));
         console.log('  少讀的字：', r.chars.missing.slice(0, 80) || '（無）');
         console.log('  多出的字：', r.chars.extra.slice(0, 80) || '（無）');
       }
