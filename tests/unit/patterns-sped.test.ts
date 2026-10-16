@@ -146,3 +146,14 @@ describe('IEP narrative, round 3', () => {
     expect(matches('sped-school', '國民小學階段')).toEqual([]);
   });
 });
+
+describe('manual additions', () => {
+  it('hide every identical occurrence, and a name its given name alone', async () => {
+    const { addManualItem } = await import('../../src/core/detector');
+    const { CodeBook } = await import('../../src/core/codes');
+    const text = '林美玲老師說明。美玲建議調整座位，林美玲會追蹤。';
+    const items: import('../../src/core/types').RedactionItem[] = [];
+    addManualItem(items, text, 0, 3, '姓名', new CodeBook());
+    expect(items.map((i) => i.original)).toEqual(['林美玲', '美玲', '林美玲']);
+  });
+});

@@ -137,7 +137,21 @@ export function addManualItem(
   const overlaps = items.some((it) => it.active && start < it.end && end > it.start);
   if (overlaps) throw new OverlapError();
   const item = makeItem(text, start, end, category, book, 'manual', retention);
-  const next = [...items, item].sort((a, b) => a.start - b.start);
+  const added = [item];
+  // Selecting a value once hides it everywhere; a name also hides its given name alone (林美玲 → 美玲).
+  const values = [item.original];
+  if (category === '姓名') {
+    const given = item.original.slice(COMPOUND_SURNAMES.some((s) => item.original.startsWith(s)) ? 2 : 1);
+    if (given.length >= 2) values.push(given);
+  }
+  for (const value of values) {
+    for (let i = text.indexOf(value); i >= 0; i = text.indexOf(value, i + value.length)) {
+      const end2 = i + value.length;
+      if ([...items, ...added].some((it) => i < it.end && end2 > it.start)) continue;
+      added.push(makeItem(text, i, end2, category, book, 'manual', retention));
+    }
+  }
+  const next = [...items, ...added].sort((a, b) => a.start - b.start);
   items.length = 0;
   items.push(...next);
   return item;

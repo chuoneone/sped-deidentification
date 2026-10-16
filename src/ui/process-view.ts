@@ -853,7 +853,7 @@ function showAddPopup(rect: DOMRect, start: number, end: number, done: () => voi
         applyOutputMode(d);
         markDirty(d);
         popup.remove();
-        toast('已新增', 'success', 1500);
+        toast('已新增（文件中相同的字也一起遮蔽）', 'success', 2000);
         done();
       } catch (e) {
         toast((e as Error).message, 'error');

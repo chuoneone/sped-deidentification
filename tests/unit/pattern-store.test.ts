@@ -75,9 +75,18 @@ describe('getEffectivePatterns', () => {
     for (const id of BUILTIN_IDS) {
       const p = patterns.find((x) => x.id === id);
       expect(p).toBeDefined();
-      expect(p!.enabled).toBe(true);
+      expect(p!.enabled).toBe(id !== 'zh-name');
       expect(p!.source).toBe('builtin');
     }
+  });
+
+  it('keeps 中文姓名 off until switched on, and remembers it', () => {
+    const on = setBuiltinEnabled(loadConfig(), 'zh-name', true);
+    expect(on.enabledBuiltins).toEqual(['zh-name']);
+    expect(getEffectivePatterns(on).find((p) => p.id === 'zh-name')!.enabled).toBe(true);
+    const off = setBuiltinEnabled(on, 'zh-name', false);
+    expect(off.enabledBuiltins).toBeUndefined();
+    expect(getEffectivePatterns(off).find((p) => p.id === 'zh-name')!.enabled).toBe(false);
   });
 
   it('uses loadConfig() by default when no argument is passed', () => {

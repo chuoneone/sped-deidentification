@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 /** A fresh process view (its state is module-wide) with the pasted text loaded and the output settings open. */
-async function loaded(text = '王小明 A123456789 0912-345-678') {
+async function loaded(text = '姓名：王小明 A123456789 0912-345-678') {
   vi.resetModules();
   const { createProcessView } = await import('../../src/ui/process-view');
   const view = createProcessView();

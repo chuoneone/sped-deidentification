@@ -29,6 +29,9 @@ export function loadConfig(): PatternConfig {
         ? parsed.customPatterns.filter((c) => c && typeof c.regex === 'string' && validateRegex(c.regex) === null)
         : [],
       retention: readRetention(parsed.retention),
+      ...(Array.isArray(parsed.enabledBuiltins) && parsed.enabledBuiltins.length
+        ? { enabledBuiltins: parsed.enabledBuiltins.filter((x) => typeof x === 'string') }
+        : {}),
     };
   } catch {
     return defaultConfig();
@@ -63,17 +66,26 @@ export function validateRegex(src: string): string | null {
 
 export function getEffectivePatterns(config: PatternConfig = loadConfig()): Pattern[] {
   const disabled = new Set(config.disabledBuiltins);
+  const switchedOn = new Set(config.enabledBuiltins ?? []);
   const retention = config.retention ?? {};
-  const builtins = BUILTIN_PATTERNS.map((p) => ({ ...p, enabled: !disabled.has(p.id), retention: retention[p.id] }));
+  const builtins = BUILTIN_PATTERNS.map((p) => ({
+    ...p,
+    enabled: !disabled.has(p.id) && (!p.defaultOff || switchedOn.has(p.id)),
+    retention: retention[p.id],
+  }));
   const customs: Pattern[] = config.customPatterns.map((c) => ({ ...c, source: 'custom', retention: retention[c.id] }));
   return [...builtins, ...customs];
 }
 
 export function setBuiltinEnabled(config: PatternConfig, id: string, enabled: boolean): PatternConfig {
   const set = new Set(config.disabledBuiltins);
+  const on = new Set(config.enabledBuiltins ?? []);
   if (enabled) set.delete(id);
   else set.add(id);
-  return { ...config, disabledBuiltins: [...set] };
+  if (enabled && BUILTIN_PATTERNS.some((p) => p.id === id && p.defaultOff)) on.add(id);
+  else on.delete(id);
+  const { enabledBuiltins: _, ...rest } = config;
+  return { ...rest, disabledBuiltins: [...set], ...(on.size ? { enabledBuiltins: [...on] } : {}) };
 }
 
 export function upsertCustom(config: PatternConfig, custom: CustomPatternConfig): PatternConfig {

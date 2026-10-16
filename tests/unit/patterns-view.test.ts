@@ -58,7 +58,9 @@ describe('patterns view rule groups', () => {
     one.checked = true;
     one.dispatchEvent(new Event('change'));
     expect(group(v, 'intl').querySelector<HTMLInputElement>('.group-toggle')!.indeterminate).toBe(true);
-    expect(group(v, 'tw').querySelector<HTMLInputElement>('.group-toggle')!.checked).toBe(true);
+    expect(group(v, 'sped').querySelector<HTMLInputElement>('.group-toggle')!.checked).toBe(true);
+    // 中文姓名 is off by default, so 台灣格式 starts partly enabled.
+    expect(group(v, 'tw').querySelector<HTMLInputElement>('.group-toggle')!.indeterminate).toBe(true);
     document.querySelectorAll('.toast').forEach((t) => t.remove()); // later tests look for their own toast
   });
 

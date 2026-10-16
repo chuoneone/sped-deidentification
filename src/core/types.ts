@@ -23,6 +23,8 @@ export interface Pattern {
   example: string;
   enabled: boolean;
   retention?: Retention;
+  /** Builtin-only: off until switched on in the rules page (see PatternConfig.enabledBuiltins). */
+  defaultOff?: boolean;
   /** Builtin-only: the rules page group (學校與特教文件／台灣格式／國際與通用格式); custom rules form their own group. */
   group?: 'sped' | 'tw' | 'intl';
   /** Builtin-only: how matches are checked beyond the RegExp (checksum, valid ranges), shown with the rule. */
@@ -168,6 +170,8 @@ export interface CustomPatternConfig {
 export interface PatternConfig {
   version: 1;
   disabledBuiltins: string[];
+  /** Builtins that are off by default (defaultOff) and were switched on; absent when none. */
+  enabledBuiltins?: string[];
   customPatterns: CustomPatternConfig[];
   /** Retention per pattern id (builtin or custom); missing means hide everything. */
   retention?: Record<string, Retention>;

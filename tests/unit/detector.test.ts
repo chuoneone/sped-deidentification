@@ -179,11 +179,10 @@ describe('addManualItem', () => {
   });
 
   it('gives the same text a different code under a different category', () => {
-    const text = 'ABC ABC';
-    const items: RedactionItem[] = [];
+    const text = 'ABC';
     const book = new CodeBook();
-    const a = addManualItem(items, text, 0, 3, '姓名', book);
-    const b = addManualItem(items, text, 4, 7, '公司', book);
+    const a = addManualItem([], text, 0, 3, '姓名', book);
+    const b = addManualItem([], text, 0, 3, '公司', book);
     expect(a.code).not.toBe(b.code);
   });
   it('throws OverlapError when overlapping an existing active item', () => {
