@@ -1,5 +1,5 @@
 import type { Category, LoadedDocument, MappingEntry, RedactionItem, Retention } from '../core/types';
-import { CATEGORIES } from '../core/types';
+import { CATEGORIES, MAX_FILE_BYTES } from '../core/types';
 import { addManualItem, detect, resplitItems, toggleItem } from '../core/detector';
 import { applyRedactions, isPartial, mergeMappings, outputFor, previewLabel } from '../core/redactor';
 import { CodeBook, parseMarkers } from '../core/codes';
@@ -7,10 +7,11 @@ import { parseMapping, serializeMapping } from '../core/csv';
 import { getEffectivePatterns, loadConfig, saveConfig, setCategoryRetention } from '../core/pattern-store';
 import { MODE_LABELS, checkRetention, describeRetention, modesFor, splitFor, type RetentionMode } from '../core/retention';
 import { ACCEPT_ATTR, formatLimitations, generateDocument, mappingFileName, outputFileName, parseDocument } from '../formats';
-import { button, clear, downloadBlob, dropZone, el, toast, withBusy } from './components';
+import { button, clear, downloadBlob, dropZone, el, rejectOversized, toast, withBusy } from './components';
 import { renderDocumentPreview, type Decoration } from './preview';
 import { MERGED_MAPPING_NAME, buildArchive } from '../formats/batch';
 import { SAMPLES, samplesSection } from './samples';
+import { ocrOverlay } from './ocr-overlay';
 
 export const MAX_FILES = 10;
 
@@ -193,8 +194,9 @@ export function syncPatternChanges(): void {
 // Loading
 // ---------------------------------------------------------------------------------------
 /** Parsing a PDF/Word file (and loading its parser) can take a while: lock the page and show progress meanwhile. */
-function loadFiles(files: File[], root: HTMLElement): Promise<void> {
-  return withBusy('讀取檔案中…', () => importFiles(files, root));
+async function loadFiles(files: File[], root: HTMLElement): Promise<void> {
+  const accepted = await rejectOversized(files);
+  if (accepted.length > 0) await withBusy('讀取檔案中…', () => importFiles(accepted, root));
 }
 
 async function importFiles(files: File[], root: HTMLElement): Promise<void> {
@@ -208,7 +210,7 @@ async function importFiles(files: File[], root: HTMLElement): Promise<void> {
   let firstNew = -1;
   for (const file of files) {
     try {
-      const doc = await parseDocument(file);
+      const doc = await parseWithOcr(file);
       const book = bookForNewDoc();
       const d: DocState = { doc, items: detect(doc.text, getEffectivePatterns(), book), book, version: 0, docVer: -1, csvVer: -1 };
       applyOutputMode(d);
@@ -220,7 +222,8 @@ async function importFiles(files: File[], root: HTMLElement): Promise<void> {
         toast(`${file.name}：原文中已存在形如 [類別:編碼] 的文字，可能與去識別化標記混淆。`, 'error', 8000);
       }
     } catch (e) {
-      toast(`${file.name}：${(e as Error).message}`, 'error', 7000);
+      if ((e as Error).name === 'AbortError') toast(`已取消辨識「${file.name}」`, 'info');
+      else toast(`${file.name}：${(e as Error).message}`, 'error', 7000);
     }
   }
   if (loaded === 0) return;
@@ -229,6 +232,17 @@ async function importFiles(files: File[], root: HTMLElement): Promise<void> {
   toast(loaded === 1 ? `偵測到 ${current().items.length} 筆敏感資訊` : `已載入 ${loaded} 個檔案，共偵測到 ${total} 筆敏感資訊`, 'success');
   if (current().items.length === 0) toast('此檔案未偵測到敏感資訊。你仍可在預覽中圈選文字手動新增。', 'info', 6000);
   render(root);
+}
+
+/** An image-only PDF is recognised behind its own progress screen, which can cancel it (FR-008, FR-009). */
+async function parseWithOcr(file: File): Promise<LoadedDocument> {
+  const abort = new AbortController();
+  const overlay = ocrOverlay(file.name, () => abort.abort());
+  try {
+    return await parseDocument(file, { ocr: { signal: abort.signal, onProgress: (p) => overlay.update(p) } });
+  } finally {
+    overlay.close();
+  }
 }
 
 /**
@@ -278,7 +292,7 @@ function render(root: HTMLElement): void {
   if (state.docs.length === 0) {
     root.append(
       el('h2', {}, '上傳文件'),
-      el('p', { class: 'muted' }, `支援 PDF（含文字層）、Word (.docx)、Excel (.xlsx)、TXT、Markdown；可一次選擇多個檔案（最多 ${MAX_FILES} 個、格式可混合），單檔 20 MB 以內。所有處理皆在瀏覽器內完成，文件不會離開你的電腦。`),
+      el('p', { class: 'muted' }, `支援 PDF（含掃描檔，會在瀏覽器內辨識文字）、Word (.docx)、Excel (.xlsx)、TXT、Markdown；可一次選擇多個檔案（最多 ${MAX_FILES} 個、格式可混合），單檔 ${MAX_FILE_BYTES / 1024 / 1024} MB 以內。所有處理皆在瀏覽器內完成，文件不會離開你的電腦。`),
       dropZone({
         accept: ACCEPT_ATTR,
         multiple: true,
@@ -390,7 +404,7 @@ function menu(label: string, items: ([string, () => void] | null)[]): HTMLElemen
 function renderToolbar(root: HTMLElement): HTMLElement {
   const d = current();
   const doc = d.doc;
-  const limits = formatLimitations(doc.format);
+  const limits = formatLimitations(doc.format, doc.ocr);
   const many = state.docs.length > 1;
   const partialCats = [...new Set(d.items.filter((it) => it.active && isPartial(it)).map((it) => it.category))];
   const status = [
@@ -406,6 +420,7 @@ function renderToolbar(root: HTMLElement): HTMLElement {
       el('div', { class: 'file-info' },
         el('strong', {}, doc.fileName),
         el('span', { class: 'badge' }, doc.format.toUpperCase()),
+        doc.ocr ? el('span', { class: 'badge badge-ocr', 'data-tip': '此檔為掃描影像，文字由瀏覽器內的文字辨識（OCR）取得' }, '文字辨識') : null,
         el('span', { class: 'muted' }, ` ${doc.text.length.toLocaleString()} 字`),
         many ? el('span', { class: 'muted' }, `　（第 ${state.active + 1} / ${state.docs.length} 個檔案）`) : null,
       ),
@@ -664,7 +679,7 @@ function previewHint(doc: LoadedDocument): string {
     case 'xlsx':
       return 'Excel 以工作表格線呈現，上方可切換工作表；';
     case 'pdf':
-      return 'PDF 依原始座標逐頁排版；';
+      return doc.ocr ? '掃描 PDF 以辨識出的文字依原位置逐頁排版，只保留不含文字的圖片（綠色虛線框，可逐張取消），請對照原檔核對；' : 'PDF 依原始座標逐頁排版；';
     default:
       return '';
   }
@@ -677,7 +692,14 @@ function renderPreview(preview: HTMLElement, refresh: () => void, root: HTMLElem
       ? { start: it.start, end: it.end, id: it.id, kind: 'mark', label: previewLabel(it), className: `mark-${it.category}`, tip: tooltipFor(it) }
       : { start: it.start, end: it.end, id: it.id, kind: 'cancelled', label: '', className: '', tip: `已取消，顯示原文（${it.category}）；點擊可加回` },
   );
-  renderDocumentPreview(preview, d.doc, decorations, { plain: state.plainView });
+  renderDocumentPreview(preview, d.doc, decorations, {
+    plain: state.plainView,
+    onTogglePicture: (pic) => {
+      pic.keep = !pic.keep;
+      markDirty(d);
+      refresh();
+    },
+  });
   preview.onmouseup = () => handleSelection(preview, refresh, root);
   preview.onclick = (e) => {
     const target = (e.target as Element | null)?.closest<HTMLElement>('[data-id]');

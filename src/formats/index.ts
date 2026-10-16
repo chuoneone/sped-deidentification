@@ -1,6 +1,7 @@
 import type { DocFormat, LoadedDocument, TextEdit } from '../core/types';
 import { MAX_FILE_BYTES } from '../core/types';
 import { generatePlainText, parsePlainText } from './plaintext';
+import type { ParsePdfOptions } from './pdf';
 
 export const SUPPORTED_EXTENSIONS: Record<string, DocFormat> = {
   txt: 'txt',
@@ -27,7 +28,8 @@ export function validateFile(file: File): DocFormat {
   return format;
 }
 
-export async function parseDocument(file: File): Promise<LoadedDocument> {
+/** `ocr` lets an image-only (scanned) PDF be recognised instead of rejected. */
+export async function parseDocument(file: File, opts: ParsePdfOptions = {}): Promise<LoadedDocument> {
   const format = validateFile(file);
   switch (format) {
     case 'txt':
@@ -38,7 +40,7 @@ export async function parseDocument(file: File): Promise<LoadedDocument> {
     case 'xlsx':
       return (await import('./xlsx')).parseXlsx(file);
     case 'pdf':
-      return (await import('./pdf')).parsePdf(file);
+      return (await import('./pdf')).parsePdf(file, opts);
   }
 }
 
@@ -68,7 +70,10 @@ export function mappingFileName(original: string): string {
   return `${base}.mapping.csv`;
 }
 
-export function formatLimitations(format: DocFormat): string | null {
+export function formatLimitations(format: DocFormat, ocr = false): string | null {
+  if (format === 'pdf' && ocr) {
+    return '此檔為掃描影像，文字由瀏覽器內的文字辨識（OCR）取得，可能有誤認或遺漏，請逐頁核對預覽並手動補上漏抓的項目。輸出只含辨識出的文字（依原位置重繪）與不含文字的圖片（照片、標誌，可在預覽逐張取消保留），其餘頁面影像一律不保留；未辨識出的文字不會出現在輸出中。還原時只還原文字。';
+  }
   if (format === 'pdf') {
     return 'PDF 輸出為文字版面重建：文字依原座標繪回，但圖片、圖形與原字型不會保留。此做法確保輸出檔內不殘留任何原始敏感文字。';
   }

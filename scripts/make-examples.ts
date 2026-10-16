@@ -8,6 +8,8 @@ import { buildXlsx } from '../tests/helpers/xlsx-builder.ts';
 import { contract, customers, meetingNotes, quotation, supportEmail } from './lib/documents.ts';
 import { renderDocx } from './lib/render-docx.ts';
 import { renderPdf } from './lib/render-pdf.ts';
+import { renderScanPdf } from './lib/render-scan.ts';
+import { scanPages } from './lib/scan-pages.ts';
 import { detect } from '../src/core/detector.ts';
 import { BUILTIN_PATTERNS } from '../src/core/patterns.ts';
 import { applyRedactions } from '../src/core/redactor.ts';
@@ -28,10 +30,25 @@ const dir = (name: string) => {
 const write = (p: string, data: string | Uint8Array) => writeFileSync(p, data);
 const font = new Uint8Array(readFileSync('public/fonts/NotoSansTC-Regular.ttf'));
 
-// 情境 1：核心流程 — 真實案例（合約書 / 報價單 Word+PDF 各 3–4 頁、客戶資料 Excel 60 筆、信件、會議紀錄）
+// 情境 1：核心流程 — 真實案例（合約書 / 報價單 Word+PDF 各 3–4 頁、客戶資料 Excel 60 筆、信件、會議紀錄、5 頁掃描文件）
 const contractDoc = contract();
 const quotationDoc = quotation();
 const contractDocx = await renderDocx(contractDoc);
+// 圖片型（掃描）PDF：5 頁模擬掃描影像，無文字層（需本機 Chrome）；同時輸出對答案用的原稿（npm run eval:ocr）
+const scanned = scanPages();
+const { pdf: scannedPdf, truth: scannedTruth } = await renderScanPdf(scanned);
+write(
+  'tests/fixtures/scanned-sample.answer.json',
+  JSON.stringify(
+    {
+      source: 'public/samples/scanned.pdf',
+      note: '掃描範例的原稿：與頁面影像同一份 HTML 產生。text 為各頁實際文字；planted／handwritten 為應被偵測的印刷／手寫敏感值；manual 為內建規則範圍外、需手動新增的值；pictures 為不含文字、應保留的圖片（PDF 座標）。',
+      pages: scanned.map((p, i) => ({ title: p.title, planted: p.planted, handwritten: p.handwritten, manual: p.manual, ...scannedTruth[i] })),
+    },
+    null,
+    2,
+  ) + '\n',
+);
 {
   const d = dir('01-核心流程');
   write(join(d, '委外服務契約書.docx'), contractDocx);
@@ -41,6 +58,7 @@ const contractDocx = await renderDocx(contractDoc);
   write(join(d, '客戶資料.xlsx'), await buildXlsx(customers()));
   write(join(d, '客服信件.txt'), supportEmail());
   write(join(d, '專案會議紀錄.md'), meetingNotes());
+  write(join(d, '掃描文件.pdf'), scannedPdf);
 }
 
 // 情境 2：人工調整 — 含誤判（高鐵站）與漏抓（罕見姓氏、病歷號）
@@ -112,7 +130,7 @@ const contractDocx = await renderDocx(contractDoc);
   const d = dir('06-格式與邊界');
   const blank = await PDFDocument.create();
   blank.addPage([595, 842]);
-  write(join(d, '掃描型無文字層.pdf'), await blank.save());
+  write(join(d, '空白頁無文字.pdf'), await blank.save());
   write(join(d, '不支援的格式.json'), '{ "name": "王小明", "id": "A123456789" }\n');
   write(
     join(d, '原文含標記樣式.txt'),
@@ -122,16 +140,16 @@ const contractDocx = await renderDocx(contractDoc);
   );
   write(
     join(d, '如何產生超大檔案.md'),
-    `# 超過 20 MB 上限的測試檔
+    `# 超過 100 MB 上限的測試檔
 
 檔案太大不放進版本庫，請自行產生：
 
 \`\`\`bash
-# macOS / Linux：產生 25 MB 的文字檔
-head -c 26214400 /dev/zero | tr '\\0' 'A' > 超過上限.txt
+# macOS / Linux：產生 101 MB 的文字檔
+head -c 105906176 /dev/zero | tr '\\0' 'A' > 超過上限.txt
 \`\`\`
 
-上傳後預期看到「檔案超過 20 MB 上限」的錯誤提示。
+上傳後預期出現「檔案超過 100 MB 上限」的警告視窗，需按「我知道了」關閉，該檔不會載入；同時選擇的其他檔案照常處理。
 `,
   );
 }
@@ -148,6 +166,7 @@ head -c 26214400 /dev/zero | tr '\\0' 'A' > 超過上限.txt
   write(join(d, 'customers.xlsx'), await buildXlsx(customers()));
   write(join(d, 'support-email.txt'), supportEmail());
   write(join(d, 'meeting-notes.md'), meetingNotes());
+  write(join(d, 'scanned.pdf'), scannedPdf);
   const file = new File([contractDocx as BlobPart], '委外服務契約書.docx');
   const doc = await parseDocx(file);
   const items = detect(doc.text, BUILTIN_PATTERNS);

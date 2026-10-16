@@ -185,6 +185,16 @@ describe('zh-name pattern', () => {
     expect(matches('zh-name', '方法論')).toEqual([]);
   });
 
+  it('does not take common words starting with a surname character for names', () => {
+    expect(matches('zh-name', '通知方式：電子郵件、手機簡訊口郵寄')).toEqual([]);
+    expect(matches('zh-name', '您得隨時向本會請求查詢')).toEqual([]);
+  });
+
+  it('does not take the job title 工程師 for a person surnamed 程', () => {
+    expect(matches('zh-name', '唐思恩 資深工程師\n')).toEqual(['唐思恩']);
+    expect(matches('zh-name', '工程師程大偉表示')).toEqual(['程大偉']);
+  });
+
   // KNOWN SRC BUG (src/core/patterns.ts): the zh-name heuristic matches '何人'
   // inside '任何人' because '何' is a listed single-character surname and
   // '何人' is not in NAME_STOPLIST (only '何時'/'何況'/'何謂'/'何必' are).

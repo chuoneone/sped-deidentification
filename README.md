@@ -6,7 +6,7 @@
 ![Client-side only](https://img.shields.io/badge/privacy-100%25%20client--side-8e44ad)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
-**在瀏覽器裡完成、資料不出電腦的文件去識別化工具。** 上傳 PDF / Word / Excel / TXT / Markdown 或直接貼上文字，自動偵測中文姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號與自訂識別碼；以符合原始格式的方式預覽、人工覆核後，下載去識別化文件與 CSV 編碼對照表，日後可憑編碼表完整還原。
+**在瀏覽器裡完成、資料不出電腦的文件去識別化工具。** 上傳 PDF（含掃描檔，於瀏覽器內辨識文字）/ Word / Excel / TXT / Markdown 或直接貼上文字，自動偵測中文姓名、身分證字號、手機、市話、地址、電子郵件、公司名稱、統一編號與自訂識別碼；以符合原始格式的方式預覽、人工覆核後，下載去識別化文件與 CSV 編碼對照表，日後可憑編碼表完整還原。
 
 🔗 **線上使用：<https://deanlin.net/data-deidentification/>**
 
@@ -51,12 +51,13 @@
 |------|------|
 | 資料不能外流 | 純前端、可離線、可自架靜態網站；沒有任何後端 |
 | 要能還原 | 每筆敏感資訊換成唯一編碼，CSV 編碼表是還原憑證 |
-| 要保留檔案格式 | Word／Excel 直接改寫文字節點，樣式表格不動；PDF 依原座標重建 |
+| 要保留檔案格式 | Word／Excel 直接改寫文字節點，樣式表格不動；PDF 依原座標重建；掃描 PDF 辨識出文字後同樣依原位置重建，並保留不含文字的圖片 |
 | 規則不可能完美 | 自動偵測只是建議：預覽、逐筆或整批取消、圈選新增，全部在同一個畫面完成 |
 
 ## 功能特色
 
-- **多格式輸入**：`.pdf`（含文字層）、`.docx`、`.xlsx`、`.txt`、`.md`，或直接貼上文字；一次最多 10 個檔案混合處理。
+- **多格式輸入**：`.pdf`（文字型或掃描影像）、`.docx`、`.xlsx`、`.txt`、`.md`，或直接貼上文字；一次最多 10 個檔案混合處理，單檔 100 MB 以內（超過時以警告視窗擋下）。
+- **掃描檔文字辨識（OCR）**：沒有文字層的 PDF 會在瀏覽器內以 Tesseract（繁體中文＋英文）逐頁辨識，有專屬的辨識畫面（頁數、進度、目前頁縮圖、可取消）。辨識前後加上幾道演算法提高成功率：移除表格框線、加深彩色字（藍筆手寫、彩色名片）、版面分析漏掉的文字行另外補辨識、身分證／手機／統編的字形校正（`I→1`、`O→0`、`g→9`，須通過檢核碼才採用）、低信心字詞以純中文模型放大重讀；範例實測印刷內容的自動偵測命中率由 84.7% 提升到 95.8%。照片、標誌等**不含文字的圖片**會原樣保留在輸出中，可在預覽逐張取消。
 - **格式感知預覽**：Word 顯示段落／標題／表格／頁首頁尾，Excel 顯示工作表格線，PDF 逐頁依原始座標排版；可切換純文字檢視。
 - **所見即所得的預覽**：預覽就是下載後的樣子，編碼以類別名稱表示（如 `[姓名]`、`A1[身分證]`），滑鼠停留顯示原文與實際輸出標記。
 - **人工覆核**：點擊標記確認取消、在類別表整類取消、圈選文字手動新增、清單定位。
@@ -71,9 +72,10 @@
 
 - **所有處理都在瀏覽器內完成**。文件內容、敏感值與編碼表不會經由網路傳送到任何伺服器；載入頁面後即使離線也能使用。
 - 瀏覽器只會儲存「偵測規則設定」（localStorage）；文件內容與編碼表不落地。
+- 文字辨識的程式與模型（約 9 MB）跟網站一起部署、由同一個網站提供，不連任何 CDN；只在第一次遇到掃描檔時下載，之後由瀏覽器的 HTTP 快取重用，不寫入瀏覽器儲存空間。
 - 編碼是 `crypto.getRandomValues` 產生的 6 位十六進位隨機碼，與原文無數學關聯，無法由編碼反推原始值。
 - **輸出檔案內不殘留原始敏感文字**：
-  - PDF 採「文字重建」而非白框覆蓋（覆蓋法的底層文字仍可被複製出來）；
+  - PDF 採「文字重建」而非白框覆蓋（覆蓋法的底層文字仍可被複製出來）；掃描 PDF 只帶出辨識後的文字與經確認不含文字的圖片，其餘頁面影像一律不複製；
   - Excel 會清空不再被任何儲存格引用的共用字串（`sharedStrings.xml`）；
   - Word 直接改寫文字節點，跨 run 拆散的值也會整段取代。
 - 尚未下載結果就關閉或重新整理頁面時會提醒。
@@ -81,7 +83,7 @@
 
 ## 快速開始
 
-**直接使用**：開啟 <https://deanlin.net/data-deidentification/>，拖入檔案即可；沒有檔案的話，頁面下方有「用範例體驗」，一鍵載入 Word／PDF／Excel／TXT 範例（見[範例檔下載與體驗](#範例檔下載與體驗)）。
+**直接使用**：開啟 <https://deanlin.net/data-deidentification/>，拖入檔案即可；沒有檔案的話，頁面下方有「用範例體驗」，一鍵載入 Word／PDF／掃描 PDF／Excel／Markdown 範例（見[範例檔下載與體驗](#範例檔下載與體驗)）。
 
 **本機執行**：
 
@@ -103,7 +105,7 @@ npm run dev        # http://localhost:5173
 ![上傳](docs/screenshots/01-upload.png)
 
 1. 三個頁籤：**去識別化**（主要流程）、**偵測規則**（管理規則）、**還原**（用編碼表復原）。
-2. 把檔案拖進虛線區或點擊選擇。支援 `.pdf`（需含文字層）、`.docx`、`.xlsx`、`.txt`、`.md`，單檔 20 MB 以內。
+2. 把檔案拖進虛線區或點擊選擇。支援 `.pdf`（含掃描檔）、`.docx`、`.xlsx`、`.txt`、`.md`，單檔 100 MB 以內；選到超過上限的檔案會跳出警告視窗列出檔名，按「我知道了」後其餘檔案照常處理。
 3. 或直接把文字（信件、對話紀錄、報表內容）貼在文字框，
 4. 按「開始去識別化」（或 Ctrl/⌘+Enter）。貼上的文字以純文字處理，結果可下載為 `.txt`，也可用「更多 → 複製去識別化文字」一鍵複製。
 5. **進階：跨檔案共用編碼**（選用，處理中也可以在「輸出方式」面板切換）：勾選「整批共用編碼」後，同一批檔案中相同的值會使用同一個編碼；按「匯入既有編碼表」可沿用上次的編碼（新值才產生新編碼），適合每月資料串接。合併編碼表會累積歷次所有個資，請妥善保管。
@@ -151,6 +153,25 @@ Excel 以工作表格線呈現，可切換工作表（下圖 1、2），右上�
 PDF 依原始座標逐頁排版（下圖 1 頁碼、2 頁面），表格與版面與原檔一致：
 
 ![PDF 預覽](docs/screenshots/02c-preview-pdf.png)
+
+**掃描檔（圖片型 PDF）**：沒有文字層的 PDF 會自動改用文字辨識，出現專屬的辨識畫面：
+
+![辨識畫面](docs/screenshots/02f-ocr-progress.png)
+
+1. 目前辨識的頁面縮圖（掃描線動畫）；
+2. 第幾頁／共幾頁與整體進度；
+3. 說明：首次使用會從本站下載約 9 MB 的辨識模型，文件只在本機處理；
+4. 隨時可以「取消辨識」，該檔不會加入，同批的其他檔案照常載入。
+
+辨識完成後與一般 PDF 相同：自動偵測、預覽、取消、圈選新增都一樣。
+
+![掃描檔預覽](docs/screenshots/02g-scanned-preview.png)
+
+1. 格式旁標示「文字辨識」；
+2. 「ⓘ 格式限制」說明辨識可能有誤，請逐頁核對、手動補上漏抓的項目；
+3. 照片、標誌等**不含文字的圖片**以綠色虛線框標出，會以原影像保留在下載檔中；含文字的區域（印章、手寫、表格）不會保留影像。點圖片左上角的「✓ 保留」可逐張取消（例如照片中有人臉或證件），取消後下載檔就不含該圖。
+
+還原只還原文字：還原後的檔案是文字版面重建，不含保留的圖片。
 
 ### 步驟 3：查看原文與實際編碼
 
@@ -210,9 +231,10 @@ PDF 依原始座標逐頁排版（下圖 1 頁碼、2 頁面），表格與版�
 | TXT / Markdown / 貼上文字 | ✅ | 同格式 | — |
 | Word | 僅 `.docx` | `.docx`，樣式／表格／頁首頁尾完整保留 | 不支援舊版 `.doc`；文字方塊、註解可能未涵蓋 |
 | Excel | 僅 `.xlsx` | `.xlsx`，儲存格樣式與工作表結構保留；被取代的儲存格改為 inline string，未再引用的共用字串會清空 | 僅處理文字型儲存格：以數值儲存的電話／證號、公式結果、工作表名稱、註解不在範圍 |
-| PDF | 需含文字層 | `.pdf`，文字依原座標重建，內嵌 Noto Sans TC 子集 | 圖片、圖形、原字型不保留；掃描影像 PDF（無文字層）無法處理，不提供 OCR |
+| PDF | 含文字層 | `.pdf`，文字依原座標重建，內嵌 Noto Sans TC 子集 | 圖片、圖形、原字型不保留 |
+| 掃描 PDF | 整份沒有文字層（掃描、拍照轉檔） | `.pdf`，辨識出的文字依原位置重建，保留不含文字的圖片 | 辨識可能誤認或遺漏（手寫、模糊、傾斜時更明顯），請逐頁核對；部分頁面才有文字層的混合型 PDF 只處理文字層；還原頁不辨識掃描檔 |
 
-其他：單檔上限 20 MB、單次最多 10 個檔案；還原一次處理一份；規則以台灣格式為主。中文姓名與地址無法以規則做到零誤判／零漏抓，請務必在預覽中人工覆核。
+其他：單檔上限 100 MB（全部在瀏覽器記憶體內處理，過大的檔案在手機上可能失敗）、單次最多 10 個檔案；還原一次處理一份；規則以台灣格式為主。中文姓名與地址無法以規則做到零誤判／零漏抓，請務必在預覽中人工覆核。
 
 ## 偵測規則
 
@@ -260,6 +282,7 @@ PDF 依原始座標逐頁排版（下圖 1 頁碼、2 頁面），表格與版�
 | 客戶資料 | Excel | 60 筆客戶＋聯絡紀錄 30 筆＋業務窗口，三個工作表 | [customers.xlsx](https://deanlin.net/data-deidentification/samples/customers.xlsx) |
 | 客服信件 | TXT | 客服回覆信與引用的原始來信 | [support-email.txt](https://deanlin.net/data-deidentification/samples/support-email.txt) |
 | 專案會議紀錄 | Markdown | 出席者、決議表格、待辦清單 | [meeting-notes.md](https://deanlin.net/data-deidentification/samples/meeting-notes.md) |
+| 掃描文件 | 掃描 PDF | 5 頁純影像（需辨識）：中文信函（含手寫批註與機房照片）、藍筆手寫的會員申請表、橫式名冊表格、英文 Invoice（品項金額表、產品照片）、中英雙語名片；模擬掃描的灰階／彩色、輕微傾斜與紙張底色 | [scanned.pdf](https://deanlin.net/data-deidentification/samples/scanned.pdf) |
 | 還原體驗 | Word + CSV | 已去識別化的契約書與其編碼表（在「還原」頁籤載入） | [contract.deid.docx](https://deanlin.net/data-deidentification/samples/contract.deid.docx)、[contract.mapping.csv](https://deanlin.net/data-deidentification/samples/contract.mapping.csv) |
 
 更多情境（人工調整、錯誤 CSV、自訂規則、格式邊界）的範例在 `examples/`，說明見 [examples/README.md](examples/README.md)；`npm run examples` 可重新產生全部範例。
@@ -275,16 +298,18 @@ npm test             # Vitest：單元 + round-trip 整合測試
 npm run build        # 型別檢查 + 產出 dist/
 npm run preview      # 試跑 dist/（http://localhost:4173）
 npm run fixtures     # 重新產生 tests/fixtures 的 docx/xlsx/pdf
-npm run examples     # 重新產生 examples/
+npm run examples     # 重新產生 examples/（含掃描範例與其原稿 tests/fixtures/scanned-sample.answer.json；需本機 Chrome）
 npm run screenshots  # 重新產生 docs/screenshots/（需先 build + preview；使用本機 Chrome）
+npm run eval:ocr     # 以原稿為答案，評分網站實際的掃描檔辨識（需先 build + preview；加 -- --verbose 列出漏抓與誤判）
 npm run og           # 重新產生 public/og.png（社群分享圖，使用本機 Chrome）
 ```
 
-本專案以 [spec-kit](https://github.com/github/spec-kit) 的規格驅動流程開發：`specs/001-doc-deidentify/` 內有規格（spec）、研究決策（research）、實作計畫（plan）、資料模型、契約與任務清單；`.specify/memory/constitution.md` 是專案憲章（純前端零外傳、可還原、人工覆核必經、規則透明）。
+本專案以 [spec-kit](https://github.com/github/spec-kit) 的規格驅動流程開發：`specs/001-doc-deidentify/`（之後的功能在 `specs/002-…`～`specs/004-scanned-pdf-ocr/`）內有規格（spec）、研究決策（research）、實作計畫（plan）、資料模型、契約與任務清單；`.specify/memory/constitution.md` 是專案憲章（純前端零外傳、可還原、人工覆核必經、規則透明）。
 
 ## 測試與品質
 
-- **230 個自動化測試**（19 個檔案）：每條內建規則的命中／不命中樣本、身分證與統編檢核碼、編碼唯一性、CSV round-trip、偵測重疊裁決與人工增刪、規則設定持久化、遮罩格式、預覽渲染、TXT／DOCX／XLSX／PDF 的「去識別化 → 還原」逐字元 round-trip、真實案例（多頁合約書／報價單、60 筆客戶資料）的偵測完整性（身分證／Email／手機 100%）、批量打包。
+- **297 個自動化測試**（26 個檔案）：每條內建規則的命中／不命中樣本、身分證與統編檢核碼、編碼唯一性、CSV round-trip、偵測重疊裁決與人工增刪、規則設定持久化、遮罩格式、預覽渲染、TXT／DOCX／XLSX／PDF 的「去識別化 → 還原」逐字元 round-trip、真實案例（多頁合約書／報價單、60 筆客戶資料）的偵測完整性（身分證／Email／手機 100%）、批量打包；掃描範例以真實 Tesseract 辨識後的偵測命中率（≥ 90%）、文字重建不重疊、保留圖片與還原，以及框線移除、字形校正、圖片偵測、漏字補辨識等辨識演算法的單元測試。
+- **掃描檔辨識評分**：掃描範例由 HTML 產生，產生時一併輸出「原稿」（各頁實際文字、應偵測的印刷／手寫值、應保留的圖片位置）。`npm run eval:ocr` 在真實瀏覽器裡跑網站，逐頁回報字元召回／精確率（不計順序、全半形視為相同）、個資命中、讀錯但仍遮蔽、誤判與圖片保留。目前：字元 98.8%／99.1%、印刷值 138/144、手寫值 9/12、誤判 2、圖片 4/4、5 頁約 19 秒。
 - **輸出零殘留**的回歸測試：Excel 共用字串、PDF 原始位元組、Word 各 part 皆確認不含任何原始敏感值。
 - 端對端驗證紀錄：`specs/001-doc-deidentify/checklists/e2e-validation.md`。
 - CI：每次 push 到 `main` 跑測試與建置，通過後自動部署 GitHub Pages。
@@ -298,12 +323,13 @@ src/
 └── ui/          三個頁籤、格式感知預覽、共用元件
 tests/           unit / integration / fixtures / helpers
 examples/        各情境範例檔（虛構資料）
-scripts/         範例產生器（文件模型 → docx/pdf）、截圖腳本
+scripts/         範例產生器（文件模型 → docx/pdf、HTML → 模擬掃描 PDF）、截圖腳本
+scripts/assets/scan/  掃描範例用的圖片原檔（以 Codex 生成，不含文字與人物）
 specs/           spec-kit 規格、計畫、任務、契約、驗證紀錄
 public/fonts/    Noto Sans TC（PDF 輸出用）
 ```
 
-技術：TypeScript + Vite（無 UI 框架）、`pdfjs-dist`（PDF 文字擷取）、`pdf-lib` + `@pdf-lib/fontkit`（PDF 輸出）、`jszip`（.docx / .xlsx / ZIP）、Vitest；截圖腳本使用 `puppeteer-core` 驅動本機 Chrome。
+技術：TypeScript + Vite（無 UI 框架）、`pdfjs-dist`（PDF 文字擷取與掃描頁渲染）、`tesseract.js`（瀏覽器內 OCR，模型 `@tesseract.js-data/chi_tra`、`eng`）、`pdf-lib` + `@pdf-lib/fontkit`（PDF 輸出）、`jszip`（.docx / .xlsx / ZIP）、Vitest；截圖腳本使用 `puppeteer-core` 驅動本機 Chrome。
 
 ## 部署
 
@@ -314,6 +340,8 @@ SEO／AEO／GEO：`index.html` 內含 description、canonical、Open Graph／Twi
 ## 授權
 
 - 字型 `public/fonts/NotoSansTC-Regular.ttf`：Noto Sans TC，© Google，[SIL Open Font License 1.1](https://openfontlicense.org/)。PDF 輸出時以自製的「稀疏子集」只內嵌用到的字形（`src/formats/ttf-subset.ts`，保留原始 glyph ID）；不使用 pdf-lib 內建 subset，因其對大型 CJK 字型的輸出在 macOS 預覽程式會顯示亂碼。
+- 文字辨識：[tesseract.js](https://github.com/naptha/tesseract.js) 與 tesseract.js-core（Apache-2.0），語言模型為 Tesseract `tessdata_best` 的 int 版本（Apache-2.0），建置時由 `vite.config.ts` 複製到站台的 `ocr/`。
+- 掃描範例：手寫字以 [霞鶩文楷 TC](https://github.com/lxgw/LxgwWenkaiTC)、英文簽名以 [Caveat](https://fonts.google.com/specimen/Caveat) 繪製（皆為 SIL OFL 1.1，只在產生範例時使用，網站不載入）；照片與標誌為 Codex 生成的圖片。
 - 本專案以 [MIT License](LICENSE) 授權。
 - 範例文件中的人名、公司、地址、電話、證號皆為程式產生的虛構資料。
 

@@ -12,13 +12,17 @@
     "fixtures": "tsx scripts/make-fixtures.ts",
     "examples": "tsx scripts/make-examples.ts",
     "screenshots": "tsx scripts/make-screenshots.ts",
+    "eval:ocr": "tsx scripts/eval-ocr.ts",
     "og": "tsx scripts/make-og.ts"
   },
   "dependencies": {
     "@pdf-lib/fontkit": "^1.1.1",
+    "@tesseract.js-data/chi_tra": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
     "jszip": "^3.10.1",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^4.10.38"
+    "pdfjs-dist": "^4.10.38",
+    "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",

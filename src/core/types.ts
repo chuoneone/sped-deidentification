@@ -81,10 +81,22 @@ export interface PdfItemLayout {
   fontSize: number;
   width: number;
 }
+/**
+ * A text-free picture cut from a scanned page and kept in the output (PDF points, origin bottom-left).
+ * `keep` is switched off from the preview to leave it out.
+ */
+export interface PdfPicture {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  jpeg: Uint8Array;
+  keep: boolean;
+}
 export type DocLayout =
   | { kind: 'docx'; paragraphs: DocxParagraphLayout[] }
   | { kind: 'xlsx'; sheets: { name: string; cells: XlsxCellLayout[] }[] }
-  | { kind: 'pdf'; pages: { width: number; height: number; items: PdfItemLayout[] }[] };
+  | { kind: 'pdf'; pages: { width: number; height: number; items: PdfItemLayout[]; pictures?: PdfPicture[] }[] };
 
 export interface LoadedDocument {
   fileName: string;
@@ -94,6 +106,8 @@ export interface LoadedDocument {
   handle: unknown;
   /** Present for docx/xlsx/pdf; plain text formats have none. */
   layout?: DocLayout;
+  /** The text was recognised from page images (scanned PDF), not read from a text layer. */
+  ocr?: boolean;
 }
 
 export interface CustomPatternConfig {
@@ -113,4 +127,4 @@ export interface PatternConfig {
   retention?: Record<string, Retention>;
 }
 
-export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const MAX_FILE_BYTES = 100 * 1024 * 1024;

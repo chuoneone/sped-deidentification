@@ -1,28 +1,35 @@
 import * as pdfjs from 'pdfjs-dist';
+import type { PDFPageProxy } from 'pdfjs-dist';
 import type { TextItem } from 'pdfjs-dist/types/src/display/api';
 import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { PDFDocument, PDFFont } from 'pdf-lib';
 import fontkit from '@pdf-lib/fontkit';
-import type { LoadedDocument, PdfItemLayout, TextEdit } from '../core/types';
+import type { LoadedDocument, PdfItemLayout, PdfPicture, TextEdit } from '../core/types';
 import { distributeEdits, type Segment } from './segments';
 import { sparseSubsetTtf } from './ttf-subset';
+import type { OcrOptions } from './ocr';
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
 
 const FONT_URL = `${import.meta.env.BASE_URL}fonts/NotoSansTC-Regular.ttf`;
 
-interface PdfTextItem {
+/** One run of text at its position (PDF points, origin bottom-left, y = baseline). */
+export interface PdfTextItem {
   text: string;
   x: number;
   y: number;
   fontSize: number;
   width: number;
+  /** A line break follows (pdf.js hasEOL); only used while assembling the text. */
+  eol?: boolean;
 }
 
-interface PdfPage {
+export interface PdfPage {
   width: number;
   height: number;
   items: PdfTextItem[];
+  /** Scanned pages only: text-free pictures to keep in the output. */
+  pictures?: PdfPicture[];
 }
 
 export interface PdfHandle {
@@ -34,38 +41,67 @@ export interface PdfHandle {
   itemIndex: number[];
 }
 
+export interface ParsePdfOptions {
+  /** Recognise the page images when no page has a text layer (scanned PDF); without it such a PDF is rejected. */
+  ocr?: OcrOptions;
+}
+
 function fontSizeOf(item: TextItem): number {
   const [, , c, d] = item.transform;
   const size = Math.hypot(c, d);
   return size > 0.5 ? size : item.height || 10;
 }
 
-export async function parsePdf(file: File): Promise<LoadedDocument> {
+async function textLayer(page: PDFPageProxy): Promise<PdfPage> {
+  const [x0, y0, x1, y1] = page.view;
+  const content = await page.getTextContent();
+  const items: PdfTextItem[] = [];
+  for (const raw of content.items) {
+    if (!('str' in raw)) continue;
+    const it = raw as TextItem;
+    items.push({ text: it.str, x: it.transform[4] - x0, y: it.transform[5] - y0, fontSize: fontSizeOf(it), width: it.width, eol: it.hasEOL });
+  }
+  return { width: x1 - x0, height: y1 - y0, items };
+}
+
+const hasText = (pages: PdfPage[]): boolean => pages.some((pg) => pg.items.some((it) => it.text.trim().length > 0));
+
+export async function parsePdf(file: File, opts: ParsePdfOptions = {}): Promise<LoadedDocument> {
   const data = new Uint8Array(await file.arrayBuffer());
   const task = pdfjs.getDocument({ data });
-  const pdf = await task.promise;
+  try {
+    const pdf = await task.promise;
+    const pages: PdfPage[] = [];
+    for (let p = 1; p <= pdf.numPages; p++) pages.push(await textLayer(await pdf.getPage(p)));
+    if (hasText(pages)) return assemblePdf(file.name, pages);
+    if (!opts.ocr) throw new Error('此 PDF 沒有可擷取的文字層（可能是掃描影像）；還原請使用本工具輸出的去識別化檔案');
+    const scanned = await (await import('./ocr')).recognizePdf(pdf, opts.ocr);
+    if (!hasText(scanned)) throw new Error('未在此 PDF 的頁面影像中辨識到任何文字');
+    return assemblePdf(file.name, scanned, true);
+  } finally {
+    await task.destroy();
+  }
+}
+
+/**
+ * Joins positioned text items (from the text layer or from OCR) into the document's full text:
+ * items on the same baseline share a line, a visible gap becomes a space, pages end with a blank line.
+ */
+export function assemblePdf(fileName: string, rawPages: PdfPage[], ocr = false): LoadedDocument {
   const pages: PdfPage[] = [];
   const segments: Segment[] = [];
   const itemPage: number[] = [];
   const itemIndex: number[] = [];
   let text = '';
 
-  for (let p = 1; p <= pdf.numPages; p++) {
-    const page = await pdf.getPage(p);
-    const [x0, y0, x1, y1] = page.view;
-    const content = await page.getTextContent();
+  rawPages.forEach((raw, p) => {
     const items: PdfTextItem[] = [];
     let lastEndX = Number.NaN;
     let lastY = Number.NaN;
 
-    for (const raw of content.items) {
-      if (!('str' in raw)) continue;
-      const it = raw as TextItem;
-      const x = it.transform[4] - x0;
-      const y = it.transform[5] - y0;
-      const size = fontSizeOf(it);
-
-      if (it.str.length > 0) {
+    for (const it of raw.items) {
+      const { x, y, fontSize: size } = it;
+      if (it.text.length > 0) {
         const sameLine = Math.abs(y - lastY) < size * 0.5;
         if (!Number.isNaN(lastY)) {
           if (!sameLine) {
@@ -74,35 +110,33 @@ export async function parsePdf(file: File): Promise<LoadedDocument> {
             text += ' ';
           }
         }
-        segments.push({ start: text.length, end: text.length + it.str.length, text: it.str });
-        itemPage.push(p - 1);
+        segments.push({ start: text.length, end: text.length + it.text.length, text: it.text });
+        itemPage.push(p);
         itemIndex.push(items.length);
-        items.push({ text: it.str, x, y, fontSize: size, width: it.width });
-        text += it.str;
+        items.push({ text: it.text, x, y, fontSize: size, width: it.width });
+        text += it.text;
         lastEndX = x + it.width;
         lastY = y;
       }
-      if (it.hasEOL && !text.endsWith('\n')) {
+      if (it.eol && !text.endsWith('\n')) {
         text += '\n';
         lastY = Number.NaN;
       }
     }
-    pages.push({ width: x1 - x0, height: y1 - y0, items });
+    pages.push({ width: raw.width, height: raw.height, items, pictures: raw.pictures });
     if (!text.endsWith('\n')) text += '\n';
     text += '\n';
-  }
-  await task.destroy();
+  });
 
-  if (text.trim().length === 0) {
-    throw new Error('此 PDF 沒有可擷取的文字層（可能是掃描影像），無法處理');
-  }
   const handle: PdfHandle = { pages, segments, itemPage, itemIndex };
-  const layoutPages = pages.map((pg) => ({ width: pg.width, height: pg.height, items: [] as PdfItemLayout[] }));
+  const layoutPages = pages.map((pg) => ({ width: pg.width, height: pg.height, items: [] as PdfItemLayout[], pictures: pg.pictures }));
   segments.forEach((seg, i) => {
     const it = pages[itemPage[i]].items[itemIndex[i]];
     layoutPages[itemPage[i]].items.push({ start: seg.start, end: seg.end, x: it.x, y: it.y, fontSize: it.fontSize, width: it.width });
   });
-  return { fileName: file.name, format: 'pdf', text, handle, layout: { kind: 'pdf', pages: layoutPages } };
+  const doc: LoadedDocument = { fileName, format: 'pdf', text, handle, layout: { kind: 'pdf', pages: layoutPages } };
+  if (ocr) doc.ocr = true;
+  return doc;
 }
 
 let fontBytesPromise: Promise<ArrayBuffer> | null = null;
@@ -133,8 +167,21 @@ function fitSize(font: PDFFont, text: string, size: number, maxWidth: number): n
 }
 
 /**
+ * OCR runs: the width up to the next run on the same line (or the right margin), so a table cell's
+ * text never runs into the next cell; recognised font sizes are only estimates.
+ */
+function roomOnLine(pg: PdfPage, it: PdfTextItem): number {
+  let room = Math.max(it.width, pg.width - it.x - 36);
+  for (const o of pg.items) {
+    if (o.x > it.x && Math.abs(o.y - it.y) < Math.min(o.fontSize, it.fontSize) * 0.5) room = Math.min(room, o.x - it.x - 2);
+  }
+  return room / 1.02; // fitSize tolerates 2% overflow
+}
+
+/**
  * Rebuilds the PDF as text-only pages at the original coordinates. Original bytes are never
- * copied, so no redacted text can survive underneath (see research.md R2).
+ * copied, so no redacted text can survive underneath (see research.md R2); the only images are the
+ * text-free pictures cut from scanned pages that the user kept.
  */
 export async function generatePdf(doc: LoadedDocument, edits: TextEdit[]): Promise<Blob> {
   const handle = doc.handle as PdfHandle;
@@ -155,8 +202,12 @@ export async function generatePdf(doc: LoadedDocument, edits: TextEdit[]): Promi
   const font = await out.embedFont(sparseSubsetTtf(new Uint8Array(await loadFontBytes()), allText), { subset: false });
   const supported = new Set(font.getCharacterSet());
 
+  const embedded = await Promise.all(handle.pages.map((pg) => Promise.all((pg.pictures ?? []).filter((pic) => pic.keep).map(async (pic) => ({ pic, image: await out.embedJpg(pic.jpeg) })))));
+
   handle.pages.forEach((pg, pIdx) => {
     const page = out.addPage([pg.width, pg.height]);
+    // Only the cut-out pictures are copied; the rest of the scanned page never is.
+    for (const { pic, image } of embedded[pIdx]) page.drawImage(image, { x: pic.x, y: pic.y, width: pic.width, height: pic.height });
     const pageChanges = newTexts.get(pIdx);
     pg.items.forEach((it, iIdx) => {
       const changed = pageChanges?.has(iIdx) ?? false;
@@ -165,7 +216,7 @@ export async function generatePdf(doc: LoadedDocument, edits: TextEdit[]): Promi
       // Replacement text may run past the original item; let it use the space up to the right
       // margin before shrinking, so whole-line items keep their size.
       const room = Math.max(it.width, pg.width - it.x - 36);
-      const size = changed ? fitSize(font, text, it.fontSize, room) : it.fontSize;
+      const size = doc.ocr ? fitSize(font, text, it.fontSize, roomOnLine(pg, it)) : changed ? fitSize(font, text, it.fontSize, room) : it.fontSize;
       page.drawText(text, { x: it.x, y: it.y, size, font });
     });
   });

@@ -69,7 +69,11 @@ export function detect(text: string, patterns: Pattern[], book: CodeBook = new C
         re.lastIndex++;
         continue;
       }
-      if (p.validate && !p.validate(m[0], text.slice(Math.max(0, m.index - 3), m.index))) continue;
+      if (p.validate && !p.validate(m[0], text.slice(Math.max(0, m.index - 3), m.index))) {
+        // Skip only the rejected word, not the whole match: 工程師程大偉 rejects「程師程」but holds「程大偉」.
+        re.lastIndex = m.index + Math.min(2, m[0].length);
+        continue;
+      }
       cands.push({ category: p.category, start: m.index, end: m.index + m[0].length, retention: p.retention });
     }
   }

@@ -14,6 +14,7 @@ const BASE = `${import.meta.env.BASE_URL}samples/`;
 export const SAMPLES: Sample[] = [
   { file: 'contract.docx', name: '委外服務契約書.docx', format: 'Word', description: '4 頁契約，含表格與頁首頁尾' },
   { file: 'quotation.pdf', name: '報價單.pdf', format: 'PDF', description: '3 頁報價單，跨頁明細表' },
+  { file: 'scanned.pdf', name: '掃描文件.pdf', format: '掃描 PDF', description: '5 頁影像需辨識，含手寫與表格' },
   { file: 'customers.xlsx', name: '客戶資料.xlsx', format: 'Excel', description: '60 筆客戶，三個工作表' },
   { file: 'meeting-notes.md', name: '專案會議紀錄.md', format: 'Markdown', description: '出席者、決議、待辦' },
 ];

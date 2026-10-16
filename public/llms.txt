@@ -10,7 +10,8 @@
 
 ## 主要特點
 
-- 多格式輸入：.pdf（需含文字層）、.docx、.xlsx、.txt、.md，或直接貼上文字；一次最多 10 個檔案混合處理，單檔 20 MB 以內
+- 多格式輸入：.pdf（文字型或掃描影像）、.docx、.xlsx、.txt、.md，或直接貼上文字；一次最多 10 個檔案混合處理，單檔 100 MB 以內（超過時以警告視窗擋下）
+- 掃描檔 OCR：沒有文字層的 PDF 在瀏覽器內以 Tesseract（繁體中文＋英文）辨識，程式與模型由本站提供、不連 CDN；辨識前移除表格框線、加深彩色字，辨識後補辨識版面分析漏掉的文字行、校正證號／電話字形（須通過檢核碼）並以純中文模型重讀低信心字詞；照片、標誌等不含文字的圖片原樣保留在輸出中，可逐張取消；還原只還原文字
 - 九種內建偵測類別：中文姓名、身分證字號（檢核碼驗證）、手機、市話、地址、電子郵件、公司／組織名稱、統一編號（檢核碼驗證）、自訂識別碼；可停用內建規則、以正規表達式新增自訂規則並即時測試
 - 格式感知預覽：Word 顯示段落／標題／表格／頁首頁尾，Excel 顯示工作表格線，PDF 逐頁依原座標排版；預覽就是下載後的樣子，編碼以類別名稱表示（如 王[姓名]、A1[身分證]）
 - 人工覆核：點擊標記取消誤判、在類別表整類取消、圈選文字手動新增、偵測清單定位
@@ -37,8 +38,8 @@
 
 ## 限制
 
-- 不支援舊版 .doc、.xls；掃描影像 PDF（無文字層）無法處理，不提供 OCR
-- PDF 輸出不保留圖片、圖形與原字型；Excel 僅處理文字型儲存格，數值型電話／證號、公式結果、工作表名稱與註解不在範圍
+- 不支援舊版 .doc、.xls；掃描 PDF 的辨識結果可能有誤認或遺漏（手寫、模糊、傾斜時更明顯），請逐頁核對；部分頁面才有文字層的混合型 PDF 只處理文字層
+- 文字型 PDF 輸出不保留圖片、圖形與原字型；Excel 僅處理文字型儲存格，數值型電話／證號、公式結果、工作表名稱與註解不在範圍
 - 中文姓名與地址無法以規則做到零誤判／零漏抓，請務必在預覽中人工覆核
 
 ## 常見問題
@@ -56,6 +57,7 @@
 - [輸出格式：標記與編碼表](https://github.com/dean9703111/data-deidentification#輸出格式標記與編碼表)
 - [範例：委外服務契約書 (Word)](https://deanlin.net/data-deidentification/samples/contract.docx)
 - [範例：報價單 (PDF)](https://deanlin.net/data-deidentification/samples/quotation.pdf)
+- [範例：掃描文件 (掃描 PDF，5 頁：信函、手寫表單、名冊、英文 Invoice、名片)](https://deanlin.net/data-deidentification/samples/scanned.pdf)
 - [範例：客戶資料 (Excel)](https://deanlin.net/data-deidentification/samples/customers.xlsx)
 - [範例：客服信件 (TXT)](https://deanlin.net/data-deidentification/samples/support-email.txt)
 - [範例：已去識別化契約書＋編碼表（還原體驗）](https://deanlin.net/data-deidentification/samples/contract.deid.docx)

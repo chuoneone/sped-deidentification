@@ -1,4 +1,4 @@
-import type { DocxParagraphLayout, LoadedDocument } from '../core/types';
+import type { DocxParagraphLayout, LoadedDocument, PdfPicture } from '../core/types';
 import { clear, el } from './components';
 
 /** A highlighted span of the full text: an active redaction, a cancelled one, or a restored value. */
@@ -16,7 +16,16 @@ export interface Decoration {
 export interface PreviewOptions {
   /** Ignore the document layout and show plain text. */
   plain?: boolean;
+  /** Scanned PDFs: switch a kept picture on or off; without it pictures are shown read-only. */
+  onTogglePicture?: (picture: PdfPicture) => void;
 }
+
+const pictureUrls = new WeakMap<PdfPicture, string>();
+const pictureUrl = (p: PdfPicture): string => {
+  let url = pictureUrls.get(p);
+  if (!url) pictureUrls.set(p, (url = URL.createObjectURL(new Blob([p.jpeg as BlobPart], { type: 'image/jpeg' }))));
+  return url;
+};
 
 /**
  * Renders `doc.text[start, end)` into `parent` as plain text spans (data-start/data-plain) and
@@ -180,7 +189,7 @@ function renderXlsx(container: HTMLElement, doc: LoadedDocument, decos: Decorati
 // ---------------------------------------------------------------------------------------
 // PDF: each page as a box with text items at their original positions, scaled to fit.
 // ---------------------------------------------------------------------------------------
-function renderPdf(container: HTMLElement, doc: LoadedDocument, decos: Decoration[], pages: { width: number; height: number; items: { start: number; end: number; x: number; y: number; fontSize: number; width: number }[] }[]): void {
+function renderPdf(container: HTMLElement, doc: LoadedDocument, decos: Decoration[], pages: { width: number; height: number; items: { start: number; end: number; x: number; y: number; fontSize: number; width: number }[]; pictures?: PdfPicture[] }[], onToggle?: (p: PdfPicture) => void): void {
   const host = el('div', { class: 'pdf-pages' });
   pages.forEach((pg, i) => {
     const page = el('div', { class: 'pdf-page' });
@@ -189,6 +198,20 @@ function renderPdf(container: HTMLElement, doc: LoadedDocument, decos: Decoratio
     // Height from the aspect ratio rather than from --s, so the page is already full-size when fit()
     // first measures; an empty-looking scroll container would snap its (and the window's) scroll to 0.
     page.style.aspectRatio = `${pg.width} / ${pg.height}`;
+    for (const pic of pg.pictures ?? []) {
+      const tip = pic.keep ? '不含文字的圖片，會以原影像保留在輸出中；點擊可取消保留' : '已取消保留，輸出不含這張圖片；點擊可改回保留';
+      const fig = el('figure', { class: `pdf-picture${pic.keep ? '' : ' is-dropped'}` },
+        el('img', { src: pictureUrl(pic), alt: pic.keep ? '保留的圖片' : '已取消保留的圖片' }),
+        onToggle
+          ? el('button', { type: 'button', class: 'pdf-picture-toggle', 'data-tip': tip, 'aria-pressed': String(pic.keep), onClick: () => onToggle(pic) }, pic.keep ? '✓ 保留' : '✕ 不保留')
+          : null,
+      );
+      fig.style.left = `calc(var(--s) * ${pic.x}px)`;
+      fig.style.top = `calc(var(--s) * ${pg.height - pic.y - pic.height}px)`;
+      fig.style.width = `calc(var(--s) * ${pic.width}px)`;
+      fig.style.height = `calc(var(--s) * ${pic.height}px)`;
+      page.append(fig);
+    }
     for (const it of pg.items) {
       const span = el('span', { class: 'pdf-item', 'data-w': String(it.width) });
       span.style.left = `calc(var(--s) * ${it.x}px)`;
@@ -234,6 +257,6 @@ export function renderDocumentPreview(container: HTMLElement, doc: LoadedDocumen
     case 'xlsx':
       return renderXlsx(container, doc, decos, layout.sheets, view);
     case 'pdf':
-      return renderPdf(container, doc, decos, layout.pages);
+      return renderPdf(container, doc, decos, layout.pages, opts.onTogglePicture);
   }
 }

@@ -98,6 +98,23 @@ await upload(page, '.process-view input[type=file]', 'examples/01-核心流程/�
 await annotate(page, [['.pdf-page-label', 1], ['.pdf-page', 2]]);
 await shot(page, '02c-preview-pdf');
 
+// 2f/2g. Scanned (image-only) PDF: the recognition screen, then the preview with the kept pictures
+await page.evaluate(() => (document.querySelector('.toolbar-actions .btn-ghost') as HTMLButtonElement).click());
+await new Promise((r) => setTimeout(r, 300));
+await upload(page, '.process-view input[type=file]', 'examples/01-核心流程/掃描文件.pdf');
+await page.waitForFunction(() => !!document.querySelector('.ocr-thumb-img:not([hidden])') && document.querySelector('.ocr-count')!.textContent!.startsWith('第 2'), { timeout: 120000 });
+await annotate(page, [['.ocr-thumb', 1], ['.ocr-count', 2], ['.ocr-note', 3], ['.ocr-actions .btn', 4]]);
+await shot(page, '02f-ocr-progress');
+await page.waitForSelector('.badge-ocr', { timeout: 240000 });
+await page.evaluate(() => {
+  const photo = document.querySelectorAll('.pdf-picture')[1] as HTMLElement;
+  photo.id = 'shot-photo';
+  const preview = document.querySelector('.preview') as HTMLElement;
+  preview.scrollTop += photo.getBoundingClientRect().top - preview.getBoundingClientRect().top - 260;
+});
+await annotate(page, [['.badge-ocr', 1], ['.status-info', 2], ['#shot-photo', 3]]);
+await shot(page, '02g-scanned-preview');
+
 // back to the contract for the remaining steps
 await page.evaluate(() => (document.querySelector('.toolbar-actions .btn-ghost') as HTMLButtonElement).click());
 await new Promise((r) => setTimeout(r, 300));

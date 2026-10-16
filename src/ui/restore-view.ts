@@ -2,7 +2,7 @@ import type { LoadedDocument, MappingEntry } from '../core/types';
 import { parseMapping } from '../core/csv';
 import { restore, type RestoreResult } from '../core/restorer';
 import { ACCEPT_ATTR, generateDocument, outputFileName, parseDocument } from '../formats';
-import { button, clear, downloadBlob, dropZone, el, toast, withBusy } from './components';
+import { button, clear, downloadBlob, dropZone, el, rejectOversized, toast, withBusy } from './components';
 import { renderDocumentPreview, type Decoration } from './preview';
 import { RESTORE_SAMPLE, fetchSample, sampleUrl } from './samples';
 
@@ -28,7 +28,7 @@ function render(root: HTMLElement): void {
     el('div', { class: 'restore-inputs' },
       el('div', { class: 'restore-slot' },
         el('h3', {}, '1. 去識別化文件'),
-        state.doc ? fileChip(state.doc.fileName, () => { state.doc = null; state.result = null; render(root); }) : dropZone({ accept: ACCEPT_ATTR, label: '選擇去識別化文件', hint: '.pdf .docx .xlsx .txt .md', onFiles: (f) => void withBusy('讀取檔案中…', () => loadDoc(f[0], root)) }),
+        state.doc ? fileChip(state.doc.fileName, () => { state.doc = null; state.result = null; render(root); }) : dropZone({ accept: ACCEPT_ATTR, label: '選擇去識別化文件', hint: '.pdf .docx .xlsx .txt .md', onFiles: (f) => void loadDocChecked(f[0], root) }),
       ),
       el('div', { class: 'restore-slot' },
         el('h3', {}, '2. 編碼表 (CSV)'),
@@ -69,6 +69,10 @@ async function loadSamplePair(root: HTMLElement): Promise<void> {
 
 function fileChip(label: string, onRemove: () => void): HTMLElement {
   return el('div', { class: 'file-chip' }, el('span', {}, label), button('移除', onRemove, 'btn btn-small btn-ghost'));
+}
+
+async function loadDocChecked(file: File, root: HTMLElement): Promise<void> {
+  if ((await rejectOversized([file])).length > 0) await withBusy('讀取檔案中…', () => loadDoc(file, root));
 }
 
 async function loadDoc(file: File, root: HTMLElement): Promise<void> {
