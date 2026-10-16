@@ -42,6 +42,7 @@ async function copyToClipboard(text: string): Promise<void> {
 const ui = { formOpen: false, details: new Set<string>(), closedGroups: new Set<string>() };
 
 const GROUPS = [
+  { id: 'sped', title: '學校與特教文件' },
   { id: 'tw', title: '台灣格式' },
   { id: 'intl', title: '國際與通用格式' },
   { id: 'custom', title: '自訂規則' },

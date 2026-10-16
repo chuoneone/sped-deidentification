@@ -27,9 +27,9 @@ const rule = (v: HTMLElement, id: string) => v.querySelector<HTMLElement>(`.rule
 const stored = () => JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
 
 describe('patterns view rule groups', () => {
-  it('groups the rules into 台灣格式, 國際與通用格式 and 自訂規則, one line each with no RegExp in sight', () => {
+  it('groups the rules into 學校與特教文件, 台灣格式, 國際與通用格式 and 自訂規則, one line each with no RegExp in sight', () => {
     const v = view();
-    expect([...v.querySelectorAll('.rule-group-title')].map((t) => t.textContent)).toEqual(['台灣格式（7）', '國際與通用格式（8）', '自訂規則（0）']);
+    expect([...v.querySelectorAll('.rule-group-title')].map((t) => t.textContent)).toEqual(['學校與特教文件（7）', '台灣格式（7）', '國際與通用格式（8）', '自訂規則（0）']);
     expect([...group(v, 'intl').querySelectorAll('.rule-row')].map((r) => r.getAttribute('data-id'))).toEqual(['us-ssn', 'email', 'intl-phone', 'credit-card', 'iban', 'ipv4', 'ipv6', 'dob']);
     expect(rule(v, 'credit-card').querySelector('.badge-信用卡')!.textContent).toBe('信用卡');
     expect(v.querySelector('code.regex')).toBeNull();

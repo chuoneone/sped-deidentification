@@ -1,6 +1,7 @@
 import type { Pattern } from './types';
 import { isValidTaxId, isValidTwId } from './twid';
 import { ibanLength, isBirthDate, isCardNumber, isIpv6, isSsn, phoneLength } from './intl';
+import { SPED_PATTERNS } from './patterns-sped';
 
 const CJK = '\\u4e00-\\u9fa5';
 
@@ -42,7 +43,7 @@ const COMPANY_NOT_FIRST = '的與和及於在由向從為對將把讓依據至�
 const COMPANY_REGEX = `(?:(?![${COMPANY_NOT_FIRST}])[${CJK}A-Za-z0-9&·]){2,14}?${COMPANY_SUFFIX}`;
 
 const COMPOUND_SURNAMES = '歐陽|司馬|諸葛|上官|張簡|范姜|司徒|東方|令狐|南宮|端木|皇甫|尉遲|夏侯';
-const SINGLE_SURNAMES =
+export const SINGLE_SURNAMES =
   '陳林黃張李王吳劉蔡楊許鄭謝郭洪邱曾廖賴徐周葉蘇莊呂江何蕭羅高潘簡朱鍾游彭詹胡施沈余盧梁趙顏柯翁魏孫戴范方宋鄧杜傅侯曹薛丁卓阮馬董溫唐藍蔣石古紀姚連馮歐程湯田康姜白汪鄒尤巫鐘黎塗龔嚴韓袁金童陸夏柳邵錢伍倪甘秦官辛戚易祝樊喬向殷凌闕舒包鮑冉牛管毛涂';
 
 /** Contexts that commonly follow a person's name; keeps 2-vs-3 char names from over-capturing. */
@@ -97,6 +98,7 @@ function isPlausibleName(m: string, before = ''): boolean {
 }
 
 export const BUILTIN_PATTERNS: Pattern[] = [
+  ...SPED_PATTERNS,
   {
     id: 'zh-name',
     name: '中文姓名',

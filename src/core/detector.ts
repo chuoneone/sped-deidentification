@@ -1,6 +1,10 @@
 import type { Category, Pattern, RedactionItem, Retention } from './types';
 import { CodeBook } from './codes';
 import { splitFor } from './retention';
+import { COMPOUND_SURNAMES } from './mask';
+
+/** The rules-page switch for linking names (see linkNames); its RegExp never matches. */
+const NAME_LINK_ID = 'sped-name-link';
 
 let nextId = 1;
 function newId(): string {
@@ -57,6 +61,28 @@ function resolveOverlaps(cands: Candidate[]): Candidate[] {
   return chosen.sort((a, b) => a.start - b.start);
 }
 
+/**
+ * Every other occurrence of a detected name also counts, and so does its given name on its own
+ * (王小明 → 小明, 2+ characters), as minutes and IEPs often call a student by given name only.
+ */
+function linkNames(text: string, chosen: Candidate[]): Candidate[] {
+  const variants = new Map<string, Candidate>();
+  for (const c of chosen) {
+    if (c.category !== '姓名') continue;
+    const name = text.slice(c.start, c.end);
+    if (!variants.has(name)) variants.set(name, c);
+    const given = name.slice(COMPOUND_SURNAMES.some((s) => name.startsWith(s)) ? 2 : 1);
+    if (given.length >= 2 && !variants.has(given)) variants.set(given, c);
+  }
+  const extra: Candidate[] = [];
+  for (const [value, c] of variants) {
+    for (let i = text.indexOf(value); i >= 0; i = text.indexOf(value, i + value.length)) {
+      extra.push({ category: '姓名', start: i, end: i + value.length, retention: c.retention });
+    }
+  }
+  return extra.length ? resolveOverlaps([...chosen, ...extra]) : chosen;
+}
+
 export function detect(text: string, patterns: Pattern[], book: CodeBook = new CodeBook()): RedactionItem[] {
   const cands: Candidate[] = [];
   for (const p of patterns) {
@@ -81,7 +107,9 @@ export function detect(text: string, patterns: Pattern[], book: CodeBook = new C
       cands.push({ category: p.category, start: m.index, end: m.index + length, retention: p.retention });
     }
   }
-  return resolveOverlaps(cands).map((c) => makeItem(text, c.start, c.end, c.category, book, 'auto', c.retention));
+  let chosen = resolveOverlaps(cands);
+  if (patterns.some((p) => p.enabled && p.id === NAME_LINK_ID)) chosen = linkNames(text, chosen);
+  return chosen.map((c) => makeItem(text, c.start, c.end, c.category, book, 'auto', c.retention));
 }
 
 export class OverlapError extends Error {

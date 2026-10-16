@@ -24,6 +24,11 @@
   --mark-IBAN: #b39ddb;
   --mark-IP: #b0bec5;
   --mark-生日: #ffccbc;
+  --mark-學校: #c5cae9;
+  --mark-班級: #d1c4e9;
+  --mark-學號: #fff59d;
+  --mark-醫院: #b2dfdb;
+  --mark-診斷: #f0b6c8;
   --mark-restored: #d0f0dd;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', sans-serif;
   font-size: 15px;
@@ -119,6 +124,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .mark-IBAN { background: var(--mark-IBAN); }
 .mark-IP { background: var(--mark-IP); }
 .mark-生日 { background: var(--mark-生日); }
+.mark-學校 { background: var(--mark-學校); }
+.mark-班級 { background: var(--mark-班級); }
+.mark-學號 { background: var(--mark-學號); }
+.mark-醫院 { background: var(--mark-醫院); }
+.mark-診斷 { background: var(--mark-診斷); }
 .mark-restored { background: var(--mark-restored); }
 .cancelled { text-decoration: underline dotted var(--danger); text-decoration-thickness: 2px; }
 .flash { outline: 3px solid var(--primary); outline-offset: 2px; transition: outline 0.3s; }
@@ -142,6 +152,11 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .badge-IBAN { background: var(--mark-IBAN); }
 .badge-IP { background: var(--mark-IP); }
 .badge-生日 { background: var(--mark-生日); }
+.badge-學校 { background: var(--mark-學校); }
+.badge-班級 { background: var(--mark-班級); }
+.badge-學號 { background: var(--mark-學號); }
+.badge-醫院 { background: var(--mark-醫院); }
+.badge-診斷 { background: var(--mark-診斷); }
 .tag {
   display: inline-flex; align-items: center; justify-content: center; white-space: nowrap; line-height: 1.5;
   font-size: 0.72rem; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 0.35rem;

@@ -1,5 +1,6 @@
 import type { Category, Retention } from './types';
-import { CITIES } from './patterns';
+import { CITIES, SINGLE_SURNAMES } from './patterns';
+import { HOSPITAL_SUFFIX_RE, SCHOOL_SUFFIX_RE } from './patterns-sped';
 import { COMPANY_MASK_RE, COMPOUND_SURNAMES } from './mask';
 import { birthYearSplit, phonePrefixLength } from './intl';
 
@@ -13,6 +14,17 @@ export interface Split {
 const NONE: Split = { head: 0, tail: 0 };
 const CITY_RE = new RegExp(`^${CITIES}`, 'u');
 const DISTRICT_RE = /^[一-龥]{1,4}?[鄉鎮市區]/u;
+
+/** A name's surname length, or 0 when it does not start with a known surname (a given name on its own, 小明). */
+function surnameLength(value: string): number {
+  if (COMPOUND_SURNAMES.some((s) => value.startsWith(s))) return 2;
+  return SINGLE_SURNAMES.includes(value[0]) ? 1 : 0;
+}
+
+function suffixSplit(value: string, re: RegExp): Split {
+  const m = value.match(re);
+  return m ? { head: 0, tail: m[0].length } : NONE;
+}
 
 export function modesFor(category: Category): RetentionMode[] {
   const modes: RetentionMode[] = ['none', 'ends', 'delim'];
@@ -69,7 +81,7 @@ function afterDigit(value: string, n: number): number {
 export function standardSplit(category: Category, value: string): Split {
   switch (category) {
     case '姓名':
-      return { head: COMPOUND_SURNAMES.some((s) => value.startsWith(s)) ? 2 : 1, tail: 0 };
+      return { head: surnameLength(value), tail: 0 };
     case '身分證':
       return { head: 2, tail: 0 };
     case '手機':
@@ -90,7 +102,18 @@ export function standardSplit(category: Category, value: string): Split {
     }
     case '統編':
     case 'SSN':
+    case '學號':
+    case '診斷':
       return NONE;
+    case '學校':
+      return suffixSplit(value, SCHOOL_SUFFIX_RE);
+    case '醫院':
+      return suffixSplit(value, HOSPITAL_SUFFIX_RE);
+    case '班級': {
+      // Keep the grade (七年、7年級、7…) for statistics, hide the class.
+      const grade = value.match(/^[^年]+年級?/u)?.[0] ?? value.match(/^\d/)?.[0] ?? '';
+      return { head: grade.length, tail: 0 };
+    }
     case '國際電話':
       return { head: phonePrefixLength(value), tail: 0 };
     case '信用卡': {
@@ -127,7 +150,7 @@ function rawSplit(value: string, r: Retention, category: Category): Split {
       return i < 0 ? NONE : { head: i + r.delimiter.length, tail: 0 };
     }
     case 'surname':
-      return { head: COMPOUND_SURNAMES.some((s) => value.startsWith(s)) ? 2 : 1, tail: 0 };
+      return { head: surnameLength(value), tail: 0 };
     case 'city':
     case 'district': {
       const city = value.match(CITY_RE)?.[0];
