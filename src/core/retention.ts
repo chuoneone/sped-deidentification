@@ -104,6 +104,7 @@ export function standardSplit(category: Category, value: string): Split {
     case 'SSN':
     case '學號':
     case '診斷':
+    case '醫療':
     case '文號':
       return NONE;
     case '學校':

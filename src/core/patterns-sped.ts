@@ -107,16 +107,26 @@ const HOSPITAL_SUFFIX =
 export const HOSPITAL_SUFFIX_RE = new RegExp(`(?:${HOSPITAL_SUFFIX})$`, 'u');
 const HOSPITAL_REGEX = `${PLACE_PREFIX}(?:${HOSPITAL_SUFFIX})`;
 
-/** 特教障礙類別（含簡稱）、常見診斷與 ADHD 用藥。Longer terms first so 自閉症類群障礙 wins over 自閉症. */
+/**
+ * 特教障礙類別（含簡稱）與常見診斷。Off by default: on its own it points to no one once names, school and
+ * class are hidden, and an IEP is useless without it. Longer terms first so 自閉症類群障礙 wins over 自閉症.
+ */
 const DIAGNOSES = [
   '情緒行為障礙', '自閉症類群障礙', '自閉症譜系障礙', '自閉症光譜', '自閉症', '注意力不足過動症', '注意力缺陷過動症',
   '注意力不足', '過動症', '亞斯伯格症', '亞斯伯格', '發展性協調障礙', '發展遲緩', '智能障礙', '視覺障礙', '聽覺障礙',
   '語言障礙', '肢體障礙', '腦性麻痺', '身體病弱', '學習障礙', '多重障礙', '讀寫障礙', '閱讀障礙', '書寫障礙', '數學障礙',
   '妥瑞氏症', '妥瑞症', '唐氏症', '癲癇', '憂鬱症', '焦慮症', '躁鬱症', '雙極性疾患', '思覺失調症', '強迫症', '對立反抗症',
-  '選擇性緘默症', '罕見疾病', '學障', '情障', '智障', '聽障', '視障', '肢障', '語障', '多障', '腦麻',
-  'ADHD', 'ASD', '利他能', '專思達', '思銳', 'Ritalin', 'Concerta', 'Strattera',
+  '選擇性緘默症', '學障', '情障', '智障', '聽障', '視障', '肢障', '語障', '多障', '腦麻', 'ADHD', 'ASD',
 ];
 const DIAGNOSIS_REGEX = `(?<![A-Za-z])(?:${DIAGNOSES.join('|')})(?![A-Za-z])`;
+
+/** 用藥與罕見疾病：few students share them, so they narrow down who it is; they stay hidden by default. */
+const MEDICAL_TERMS = [
+  '普瑞德威利症候群', '小胖威利症', '威廉氏症候群', '威廉氏症', '蕾特氏症', 'X染色體脆折症', '天使症候群', '貓哭症候群',
+  '結節性硬化症', '黏多醣症', '成骨不全症', '玻璃娃娃', '裘馨氏肌肉失養症', '脊髓性肌肉萎縮症', '肌肉萎縮症', '苯酮尿症', '泡泡龍',
+  '罕見疾病', '罕病', '利他能', '專思達', '思銳', '理思必妥', '安立復', 'Ritalin', 'Concerta', 'Strattera', 'Risperdal', 'Abilify',
+];
+const MEDICAL_REGEX = `(?<![A-Za-z])(?:${MEDICAL_TERMS.join('|')})(?![A-Za-z])`;
 
 export const SPED_PATTERNS: Pattern[] = [
   {
@@ -199,14 +209,26 @@ export const SPED_PATTERNS: Pattern[] = [
     enabled: true,
   },
   {
-    id: 'sped-diagnosis',
-    name: '障礙類別／診斷／用藥',
+    id: 'sped-medical',
+    name: '用藥／罕見疾病',
     group: 'sped',
-    note: '特教 13 類障礙類別與簡稱（學障、情障…）、自閉症、ADHD、妥瑞症等常見診斷與 ADHD 用藥。IEP 內容需要保留障礙類別時，停用這條',
+    note: '利他能、專思達等精神科與 ADHD 用藥，以及罕見疾病與症候群名稱（小胖威利症、玻璃娃娃…）；這些很少人有，容易縮小範圍認出學生',
+    category: '醫療',
+    source: 'builtin',
+    regex: MEDICAL_REGEX,
+    example: '利他能、小胖威利症、罕見疾病',
+    enabled: true,
+  },
+  {
+    id: 'sped-diagnosis',
+    name: '障礙類別／診斷',
+    group: 'sped',
+    note: '特教 13 類障礙類別與簡稱（學障、情障…）、自閉症、ADHD、妥瑞症等常見診斷。姓名、學校、班級遮掉後，類別本身認不出是誰，而 IEP 少了它就失去用處，所以預設關閉；資料要公開（簡報、研習、研究報告）時再開啟',
     category: '診斷',
     source: 'builtin',
     regex: DIAGNOSIS_REGEX,
-    example: '學習障礙、自閉症、ADHD、利他能',
+    example: '學習障礙、自閉症、ADHD',
     enabled: true,
+    defaultOff: true,
   },
 ];

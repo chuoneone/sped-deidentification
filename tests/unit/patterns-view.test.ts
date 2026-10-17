@@ -29,7 +29,7 @@ const stored = () => JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
 describe('patterns view rule groups', () => {
   it('groups the rules into 學校與特教文件, 台灣格式, 國際與通用格式 and 自訂規則, one line each with no RegExp in sight', () => {
     const v = view();
-    expect([...v.querySelectorAll('.rule-group-title')].map((t) => t.textContent)).toEqual(['學校與特教文件（8）', '台灣格式（7）', '國際與通用格式（8）', '自訂規則（0）']);
+    expect([...v.querySelectorAll('.rule-group-title')].map((t) => t.textContent)).toEqual(['學校與特教文件（9）', '台灣格式（7）', '國際與通用格式（8）', '自訂規則（0）']);
     expect([...group(v, 'intl').querySelectorAll('.rule-row')].map((r) => r.getAttribute('data-id'))).toEqual(['us-ssn', 'email', 'intl-phone', 'credit-card', 'iban', 'ipv4', 'ipv6', 'dob']);
     expect(rule(v, 'credit-card').querySelector('.badge-信用卡')!.textContent).toBe('信用卡');
     expect(v.querySelector('code.regex')).toBeNull();
@@ -58,8 +58,8 @@ describe('patterns view rule groups', () => {
     one.checked = true;
     one.dispatchEvent(new Event('change'));
     expect(group(v, 'intl').querySelector<HTMLInputElement>('.group-toggle')!.indeterminate).toBe(true);
-    expect(group(v, 'sped').querySelector<HTMLInputElement>('.group-toggle')!.checked).toBe(true);
-    // 中文姓名 is off by default, so 台灣格式 starts partly enabled.
+    // 障礙類別／診斷 and 中文姓名 are off by default, so both groups start partly enabled.
+    expect(group(v, 'sped').querySelector<HTMLInputElement>('.group-toggle')!.indeterminate).toBe(true);
     expect(group(v, 'tw').querySelector<HTMLInputElement>('.group-toggle')!.indeterminate).toBe(true);
     document.querySelectorAll('.toast').forEach((t) => t.remove()); // later tests look for their own toast
   });

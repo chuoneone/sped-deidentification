@@ -88,8 +88,15 @@ describe('sped-hospital and sped-diagnosis', () => {
     expect(matches('sped-hospital', '經羅東博愛醫院評估，轉介宜蘭早療中心')).toEqual(['羅東博愛醫院', '宜蘭早療中心']);
   });
 
-  it('matches disability categories, diagnoses and medication', () => {
-    expect(matches('sped-diagnosis', '學習障礙，伴隨ADHD，服用利他能')).toEqual(['學習障礙', 'ADHD', '利他能']);
+  it('matches disability categories and diagnoses, and medication and rare diseases separately', () => {
+    expect(matches('sped-diagnosis', '學習障礙，伴隨ADHD，服用利他能')).toEqual(['學習障礙', 'ADHD']);
+    expect(matches('sped-medical', '學習障礙，伴隨ADHD，服用利他能；疑似小胖威利症')).toEqual(['利他能', '小胖威利症']);
+  });
+
+  it('keeps disability categories by default but hides medication', async () => {
+    const { getEffectivePatterns } = await import('../../src/core/pattern-store');
+    const found = detect('學習障礙，伴隨ADHD，服用利他能', getEffectivePatterns({ version: 1, disabledBuiltins: [], customPatterns: [] }));
+    expect(found.map((i) => `${i.category}:${i.original}`)).toEqual(['醫療:利他能']);
   });
 });
 
